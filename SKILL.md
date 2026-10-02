@@ -234,6 +234,7 @@ bootstrap 会自动做完：写 `config.json` → 把脚本铺进 `<workDir>\_wo
 | `verify_overlaps.py` | 列出被 ≥2 个 mod 覆盖的标签，分「多件套 / 分类级 / 多目标聚合 / 仅地图附带 / ⚠真冲突」 |
 | `probe_unclassified.mjs` | 打印某 mod 的路径分类明细与未归类项 |
 | `verify_ps1_ascii.py` | **护栏**：检查所有 `.ps1` 是否 100% ASCII。PS 5.1 会把无 BOM 的 UTF-8 `.ps1` 按 GBK 解析，**哪怕中文只出现在注释里**也会打乱解析、吃掉后一行（真实事故：一句中文注释让 `$WS = ...` 整行消失） |
+| `self_test.py` | **全链路自测**：在临时目录里模拟「全新用户 + 空库」，跑 9 个阶段（bootstrap → 造 VPK → 刷新 → 扫 workshop 暂存件 → 搬迁 → 三件校验 → 再刷新 → 命名幂等 → 冲突/校验/ASCII 护栏）。**改任何脚本前后都跑它** —— 不碰真实库，失败会保留临时目录供排查 |
 | `workspace_backup.ps1 -Mode save\|restore` | 工作区镜像备份（robocopy /MIR），防意外清空 |
 
 **冲突判定以「表格标签链路」为准**（`addons_scan.json` + `label_map.json` + `verify_overlaps.py`），
