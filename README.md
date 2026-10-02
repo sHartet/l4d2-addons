@@ -2,8 +2,10 @@
 
 把《求生之路2》(Left 4 Dead 2) 的创意工坊 mod 库整理成**可读、可查、不重复**的样子。
 
-一个 [Agent Skill](https://github.com/deepseek-ai)：装进 DSH / Claude Code 之类的 agent 后，
+一个 **Agent Skill**：装进 DSH / Claude Code 之类的 agent 后，
 你跟它说「整理我的 L4D2 mod」，它会自己把整套工具链铺好，然后按规则干活。
+
+[English README](README.en.md) · [贡献指南](CONTRIBUTING.md)
 
 ---
 
@@ -46,12 +48,19 @@
 - **规则例外可持久化**：你拍板过的取舍写进 `name_exempt.json`，重跑不会推回去。
 - **不靠文件名猜冲突**：冲突判定走「VPK 真实路径 → 标签 → 表格行」这条链路；
   文件名扫描器只作辅助（落到资源类型前缀的 mod 中段为空，文件名扫描器判不了）。
+- **不含任何用户数据**：白名单、例外表、批次、扫描结果、xlsx 全在 `.gitignore` 里，
+  仓库只有工具与文档。
 
 ## 目录结构
 
 ```
 l4d2-addons/
   SKILL.md                    agent 读的入口：首次引导 + 标准流程 + 工具箱
+  README.md / README.en.md    中英文说明
+  CONTRIBUTING.md             贡献指南 —— 含 10 条硬不变量（踩过坑才写下的）
+  LICENSE                     MIT
+  install.ps1                 安装到 DSH 的 skill 目录
+  .gitignore / .gitattributes / .editorconfig
   reference/
     naming-rules.md           分类命名规范全文（判据、邻接标签、横切行、上位名、规则例外）
     xlsx-pipeline.md          表格生成链路 + 4 条硬不变量
@@ -59,17 +68,28 @@ l4d2-addons/
     steam-api.md              工坊 API、.url 格式、取消全部订阅
     pitfalls.md               Windows / PowerShell 5.1 / 中文编码 环境坑
   scripts/                    全部可执行工具（路径全部由 config.json 驱动）
-  install.ps1                 安装到 DSH 的 skill 目录
 ```
 
 ## 手动安装
 
 ```powershell
-pwsh -File install.ps1            # 或 powershell -File install.ps1
+powershell -File install.ps1
 ```
 
 默认装到 `$env:DSH_HOME\skills\l4d2-addons`（缺省 `~\.dsh\skills\l4d2-addons`），
 也可用 `-Dest "<目录>"` 指定。装完在 agent 里说一句「整理我的 L4D2 mod」即可。
+
+## 自测
+
+```powershell
+python scripts\self_test.py
+```
+
+在一个**临时目录**里模拟「全新用户 + 空库」，走完 9 个阶段：bootstrap 生成工作区 →
+造 3 个假 VPK → 空库刷新 → 扫 workshop 暂存件 → 搬迁（干跑+执行）→ 三件校验 →
+再刷新 → 命名幂等（需改名 0）→ 冲突扫描与全部校验脚本。
+
+**完全不碰你的真实 mod 库**；某一阶段失败时会保留临时目录供排查。改任何脚本前先跑它。
 
 ## 环境要求
 
@@ -81,4 +101,4 @@ pwsh -File install.ps1            # 或 powershell -File install.ps1
 
 ## 许可
 
-MIT
+MIT —— 见 [LICENSE](LICENSE)。

@@ -1,12 +1,12 @@
 # l4d2-addons
 
-An [Agent Skill](https://github.com/deepseek-ai) that turns a messy Left 4 Dead 2
-workshop mod folder into something you can actually read, search and trust.
+An **Agent Skill** that turns a messy Left 4 Dead 2 workshop mod folder into something
+you can actually read, search and trust.
 
 Install it into a coding agent (DSH, Claude Code, …), say *"tidy up my L4D2 mods"*,
 and it will scaffold its own toolchain and get to work.
 
-[中文说明见 README.md](README.md)
+[中文说明见 README.md](README.md) · [Contributing](CONTRIBUTING.md)
 
 ---
 
@@ -70,8 +70,10 @@ that `.bat` re-scans and refreshes everything** — no agent required.
 l4d2-addons/
   SKILL.md                 entry point the agent reads (first-run flow, 8-step standard flow, toolbox)
   README.md / README.en.md
-  LICENSE
+  CONTRIBUTING.md          the ten hard invariants -- each one exists because breaking it shipped a bug
+  LICENSE                  MIT
   install.ps1              installs this folder into the DSH skills root
+  .gitignore / .gitattributes / .editorconfig
   reference/
     naming-rules.md        full classification spec (criteria, adjacency labels, cross-cutting rows, exceptions)
     xlsx-pipeline.md       workbook pipeline + its four hard invariants
@@ -100,6 +102,7 @@ Simulates a **brand-new user with an empty library** inside a temp directory and
 nine stages: bootstrap, fake-VPK generation, empty-library refresh, workshop scan,
 migration, three-file verification, re-refresh, naming idempotence, and conflict/validation checks.
 It never touches your real library, and keeps the temp folder if a stage fails.
+Run it before touching any script.
 
 ## Requirements
 
@@ -109,6 +112,13 @@ It never touches your real library, and keeps the temp folder if a stage fails.
 
 Paths resolve in three tiers — **environment variable -> `config.json` -> built-in default** —
 overridable per run with `L4D2_HOME`, `L4D2_ADDONS`, `L4D2_XLSX_OUT`, `L4D2_MIRROR`.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). The short version: every `.ps1` must be pure ASCII
+(PowerShell 5.1 decodes BOM-less UTF-8 as GBK, and a Chinese *comment* can swallow the next
+line), one classification label maps to exactly one workbook row, and `scripts\self_test.py`
+must stay green.
 
 ## License
 
