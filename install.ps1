@@ -25,11 +25,12 @@ if (Test-Path -LiteralPath $Dest) {
   Remove-Item -LiteralPath $Dest -Recurse -Force
 }
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Dest) | Out-Null
-Copy-Item -LiteralPath $src -Destination $Dest -Recurse -Force
+New-Item -ItemType Directory -Force -Path $Dest | Out-Null
 
-# never ship a bytecode cache
-Get-ChildItem -LiteralPath $Dest -Recurse -Directory -Filter '__pycache__' -ErrorAction SilentlyContinue |
-  Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+# robocopy, not Copy-Item -Recurse: the latter would also drag .git (and any bytecode
+# cache) into the installed skill. /XD excludes directories, /E copies subdirs.
+$null = robocopy $src $Dest /E /XD .git __pycache__ .github /NFL /NDL /NJH /NJS /NP
+if ($LASTEXITCODE -ge 8) { throw ("robocopy failed with " + $LASTEXITCODE) }
 
 Write-Output ("INSTALLED  " + $Dest)
 Get-ChildItem -LiteralPath $Dest | Select-Object Mode, Name, Length | Format-Table -AutoSize | Out-String -Width 120
