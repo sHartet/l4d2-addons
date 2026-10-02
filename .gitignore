@@ -1,0 +1,20 @@
+# 本地/用户数据：绝不进仓库
+__pycache__/
+*.pyc
+config.json
+name_exempt.json
+set_exempt.json
+mod白名单.txt
+rename_plan*.md
+rename_batch*.json
+rename_batch*_log.txt
+ws_batch*.json
+*_log.txt
+addons_scan.json
+addons_by_target.json
+label_map.json
+rv_paths.json
+target_conflicts.txt
+overlap_report.json
+addons_sha1.csv
+*.xlsx

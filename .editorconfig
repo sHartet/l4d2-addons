@@ -1,0 +1,18 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# PowerShell 5.1 decodes a BOM-less UTF-8 .ps1 as GBK/ANSI, so a single non-ASCII
+# byte -- even inside a comment -- corrupts the parse. Keep these pure ASCII.
+[*.ps1]
+end_of_line = crlf
+
+[*.bat]
+end_of_line = crlf
+
+[*.md]
+trim_trailing_whitespace = false

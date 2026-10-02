@@ -1,0 +1,12 @@
+# Normalise line endings so the repo behaves the same on any machine.
+# .ps1 and .bat are pinned to CRLF: batch files in particular misbehave with LF-only
+# endings, and PowerShell 5.1 is happiest with CRLF.
+* text=auto eol=lf
+
+*.ps1   text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+*.png   binary
+*.jpg   binary
+*.xlsx  binary
