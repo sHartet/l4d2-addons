@@ -33,7 +33,23 @@ python <skill>\scripts\bootstrap.py --show
 | `known.cwdConfig` 有值 | 当前目录就是 workDir → 直接用 |
 | `known.pointerConfig` 有值 **且** 指针指向的 workDir **等于**当前会话 cwd | 直接用，不用问 |
 | `known.pointerConfig` 有值 **但** 与当前会话 cwd **不同** | ⚠️ **必须问一句**，见下 |
-| 两者都空 | **首次调用**：问用户下面 3 件事，然后跑 bootstrap |
+| 两者都空 | **首次调用**：按 `needAsk` 问（应为 `workDir` / `addonsDir` / `workshopDir` 三项），然后跑 bootstrap |
+
+**以 `--show` 的返回字段为准，不要自己猜：**
+
+| 字段 | 含义 |
+|---|---|
+| `needAsk` | **要问用户的清单，以它为准。** 全新安装 = `workDir` + `addonsDir` + `workshopDir`；已配置过 = 空数组 |
+| `workDir` | **照当前参数跑下去、产物会落在哪** —— 解析规则与 install 完全一致（`--workdir` > 当前目录） |
+| `workDirSource` | 上一行是怎么定出来的（`explicit (--workdir)` / `current directory (default)`） |
+| `pointerWorkDir` | 本机**已配置过**的工作目录（没配置则是空） |
+| `pointerDiffersFromCwd` | 上一行那个目录**是否与当前会话目录不同**；`true` → 按上表那行「必须问一句」 |
+
+> ⚠️ 别把 `workDir` 和 `pointerWorkDir` 混为一谈：前者是「**这次**会写哪」，后者是「**以前**配过哪」。
+> 只有当 `pointerDiffersFromCwd` 为 `true`、且用户选了沿用旧目录时，才把 `--workdir "<pointerWorkDir>"` 显式传给 bootstrap。
+>
+> ⚠️ **全新安装时 `workDir` 也在询问清单里**：agent 自己的 cwd 常常不是用户选的地方，
+> 不打招呼就往那里丢 `config.json` / `xlsx` / `_work\` 会让人意外（已有用户就此反馈过）。
 
 #### ⚠️ 指针的 workDir ≠ 当前会话 cwd 时，必须先问
 

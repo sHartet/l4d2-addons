@@ -149,9 +149,31 @@ def main():
              "pointerConfig": cfg_path(ptr) if ptr and read_cfg(ptr) else None}
 
     if a.show or not a.addons:
-        out = {"mode": "show", "cwd": os.getcwd(), "known": known,
+        ptr_ok = bool(ptr and read_cfg(ptr))
+        # workDir 用与 install 完全相同的规则解析（--workdir > cwd），
+        # 所以这里报的就是「照当前参数跑下去，产物会落在哪」。
+        # 指针指向的目录另用 pointerWorkDir 给出，不要把两者混为一谈。
+        wd_src = "explicit (--workdir)" if a.workdir else "current directory (default)"
+        # 需要问用户的：
+        #   - 全新安装（既无指针配置也无当前目录配置）→ 三件都问，**含 workDir**。
+        #     不能默默用 cwd：agent 的 cwd 常常不是用户选的地方，往那里丢
+        #     config.json / xlsx / _work\ 会让人意外（用户已就此反馈过）。
+        #   - 已配置过 → 不问。若指针目录与当前目录不同，用 pointerDiffersFromCwd
+        #     标出来，由 agent 按 SKILL.md 问一句用哪个。
+        if ptr_ok or cwd_cfg:
+            need = []
+        else:
+            need = ["workDir", "addonsDir", "workshopDir"]
+        out = {"mode": "show", "cwd": os.getcwd(),
+               "workDir": home,
+               "workDirSource": wd_src,
+               "known": known,
                "pointerPath": POINTER,
-               "needAsk": [] if (ptr and read_cfg(ptr)) else ["addonsDir", "workshopDir"]}
+               "pointerWorkDir": ptr,
+               "pointerDiffersFromCwd": bool(
+                   ptr_ok and os.path.normcase(os.path.abspath(ptr))
+                   != os.path.normcase(os.path.abspath(os.getcwd()))),
+               "needAsk": need}
         if ptr and read_cfg(ptr):
             out["config"] = read_cfg(ptr)
         print(json.dumps(out, ensure_ascii=False, indent=1))
