@@ -39,7 +39,8 @@ OUT = L4D2_XLSX
 # ---------------- addons 现状快照（动态统计，防止说明书/速查表里的数字过期）----------------
 # 现行分类前缀（2026-10-03 定稿；旧 角色- / 武器- / 效果- 已废弃）
 PREFIXES = ["生还者", "特感", "普感", "主武器", "副武器", "近战", "投掷物", "消耗品",
-            "场景道具", "场景", "模型", "地图", "材质", "界面", "特效", "脚本", "音效", "其它"]
+            "场景道具", "场景", "模型", "地图", "材质", "界面", "特效", "脚本", "音效",
+            "手电筒", "管理员插件", "其它"]
 
 
 def _scan_addons():
@@ -131,7 +132,7 @@ ARMS = "models/weapons/arms/"
 add_sheet(
     wb, "说明", ["项目", "内容"], [
         ["表格用途", "求生之路2（Left 4 Dead 2）全部可被 MOD 替换的游戏内物件速查表。用于给 MOD 归类、填写「替换对象」、判断一个 VPK 到底覆盖了哪个游戏资源。"],
-        ["覆盖范围", "生还者 8 人 / 特殊感染者 8 种 / 普通感染者 38 行变体 / 主武器 17 把 / 副武器 4 把 / 近战 17 种 / 投掷物 3 种 / 消耗品 4 种 / 场景道具 10 种 / 场景物件与固定武器 / 音效 / 界面·特效·材质·其他资源。"],
+        ["覆盖范围", "生还者 8 人 / 特殊感染者 8 种 / 普通感染者 38 行变体 / 主武器 17 把 / 副武器 4 把 / 近战 17 种 / 投掷物 3 种 / 消耗品 4 种 / 场景道具 10 种 / 场景物件与固定武器 / 音效 / 界面·特效·材质·其他资源 / 手电筒 / 管理员插件。"],
         ["数据来源", "① 游戏本体 VPK 目录树（left4dead2/pak01_dir.vpk、left4dead2_dlc1~3、update/pak01_dir.vpk）共 38,004 条资源路径；② scripts/weapon_*.txt、scripts/melee/*.txt 脚本清单；③ resource/left4dead2_english.txt 官方字符串表；④ addons 下每个 VPK 的真实内部资源树（用于「替换状态」列）。"],
         ["⭐ 路径写法约定", "所有模型/音效单元格：单个值 = 完整 VPK 路径；多个值用「、」分隔且**每个值都是完整路径**（不允许只有第一条带目录）；通配写成 `models/.../xxx_*.mdl`，整目录写成 `models/.../xxx/`（以 / 结尾）；"
                           "**VPK 根目录下的文件直接写文件名**（如 `l4d2_background01.bik`、`addoninfo.txt`），这也是完整路径；说明性文字一律放「备注/说明」列，不混进路径列。"],
@@ -142,8 +143,8 @@ add_sheet(
         ["同一物件多个 MOD", "多个 MOD 改同一个文件时，按 addons 文件夹加载顺序后者覆盖前者；散件（left4dead2 根目录）优先级高于所有 VPK。"],
         ["模型三件套", "任何 .mdl 都必须同时提供同名 .vvd / .dx90.vtx（有的还要 .phy / .ani），只换 .mdl 不换贴图会出现白模或模型错乱。.vmt 是指向 .vtf 的材质脚本。"],
         ["命名规律", "w_ 前缀 = 第三人称世界里看到的模型；v_ 前缀 = 第一人称手持模型；models/weapons/arms/v_arms_*.mdl = 第一人称手臂（分角色，可单独换）。"],
-        ["替换对象建议写法", "现行 **17 个前缀**（2026-10-03 定稿）：物件域 生还者- / 特感- / 普感- / 主武器- / 副武器- / 近战- / 投掷物- / 消耗品- / 场景道具- / 场景-；"
-                          "资源类型 模型- / 地图- / 材质- / 界面- / 特效- / 脚本- / 音效-；兜底 其它-。"
+        ["替换对象建议写法", "现行 **19 个前缀**（2026-10-03 定稿，含当日新增的 手电筒- / 管理员插件-）：物件域 生还者- / 特感- / 普感- / 主武器- / 副武器- / 近战- / 投掷物- / 消耗品- / 场景道具- / 场景-；"
+                          "资源类型 模型- / 地图- / 材质- / 界面- / 特效- / 脚本- / 音效- / 手电筒- / 管理员插件-；兜底 其它-。"
                           "写法 `<分类>-<替换对象>-<原标题>`；生还者 / 特感 用官方**英文名**（Coach / Boomer），其余物件域用官方**中文名**（AK-47 突击步枪 / 武士刀 / 马格南手枪）；"
                           "资源类型前缀与低置信项**省略中段**。中段取值细则见 _work\\工作流规范_分类命名.md。"
                           "旧 角色- / 武器- / 效果- 已废弃（角色- 拆成 生还者/特感/普感，武器- 拆成 主武器/副武器/近战/投掷物/消耗品，效果- 并入 特效-/材质-）。"],
@@ -464,6 +465,10 @@ OTHER = [
     ["34", "其他", "感染者骨架动画", "models/infected/anim_*.mdl", "感染者（含特殊感染者）的骨骼动画模型", "特感-"],
     ["35", "其他", "语音", "sound/player/survivor/voice/、sound/npc/", "语音包（中文语音/日语语音/梗语音）", "音效-"],
     ["36", "其他", "喷漆与本地资源", "materials/vgui/logos/", "玩家自定义喷漆走本地文件夹或自定义 VPK", "界面-"],
+    ["37", "其他", "手电筒", "materials/effects/flashlight001.vtf、materials/particle/beam_flashlight.vmt、materials/particle/flashlight_glow_noz.vmt",
+     "只认手电筒**本体**：materials/effects/flashlight*（光斑贴图）与含 flashlight 的模型。粒子包/菜单里的 particle/beam_flashlight* 与 flashlight_glow* 是共享资源，不算手电筒 mod", "手电筒-"],
+    ["38", "其他", "管理员插件", "scripts/vscripts/*admin*.nut、addons/sourcemod/、*.smx、addons/metamod/",
+     "服务器 / 房间管理工具（VScript 管理菜单、SourceMod 插件）。含任一入口文件即定身份，不靠路径占比", "管理员插件-"],
 ]
 OTHER_EN = ["HUD Textures", "Health Bar", "Crosshair", "Infected Icons",
             "Main Menu Background", "Startup Movies", "Loading Screens", "Achievement Icons",
@@ -473,7 +478,8 @@ OTHER_EN = ["HUD Textures", "Health Bar", "Crosshair", "Infected Icons",
             "Environment Textures", "Model Textures", "Skybox", "Decals", "Graffiti",
             "Map Support Files (nav/lightmaps)", "Maps / Campaigns", "Game Mode Definitions",
             "Mission & Campaign Scripts", "VScript", "Weapon Scripts", "Melee Scripts",
-            "Infected Skeletons", "Voice", "Local Sprays"]
+            "Infected Skeletons", "Voice", "Local Sprays",
+            "Flashlight", "Admin Plugins"]
 assert len(OTHER_EN) == len(OTHER), (len(OTHER_EN), len(OTHER))
 OTHER2 = [[r[0], r[1], r[2], en, r[3], r[4], r[5]] for r, en in zip(OTHER, OTHER_EN)]
 add_sheet(wb, "界面·特效·材质·其他", ["#", "大类", "可替换内容", "英文描述", "游戏内路径", "说明", "建议分类前缀"],
@@ -499,6 +505,10 @@ CAT_META = [
     ("特效", "粒子与屏幕效果", "particles/*.pcf、materials/decals/blood*.vmt", "2026-10-03 起吸收旧「效果-」，该前缀不再使用"),
     ("脚本", "数值 / 规则 / 逻辑脚本", "scripts/*.txt、scripts/melee/*.txt、scripts/vscripts/*.nuc、modes/*.txt", "改伤害、无限弹药、免控、第三人称、血量显示"),
     ("音效", "音效 / 语音 / 音乐", "sound/", "吸收旧「语音·」；枪声、角色语音、BGM、环境音"),
+    ("手电筒", "手电筒光斑 / 光晕贴图", "materials/effects/flashlight*.vtf、materials/particle/(beam_)?flashlight*.vmt",
+     "2026-10-03 新增。只认 flashlight；枪口焰 muzzleflash 不含该子串，天然不误伤"),
+    ("管理员插件", "服务器 / 房间管理工具", "scripts/vscripts/*admin*.nut、addons/sourcemod/**、*.smx",
+     "2026-10-03 新增。含任一入口文件即定身份（不靠路径占比），与 S1「含 bsp 即地图」同理"),
     ("其它", "无法归入以上分类", "—", "兜底前缀"),
 ]
 CAT = [[p + "-", desc, path, str(ADDON_BY_PREFIX.get(p, 0)), note] for p, desc, path, note in CAT_META]
@@ -507,7 +517,7 @@ CAT.append(["（无前缀）", "尚未按规范命名的 VPK", "—", str(ADDON_
 add_sheet(wb, "分类速查", ["分类前缀", "覆盖内容", "对应游戏路径", "现有 MOD 数量", "说明"],
           CAT, [14, 30, 66, 16, 56], "2E4F6B",
           "分类 × 现有 MOD 数量（生成时动态统计：addons 顶层 %d 个 VPK）"
-          "　·　现行方案 = 2026-10-03 定稿的 17 个前缀；旧 角色- / 武器- / 效果- 已废弃" % ADDON_TOP)
+          "　·　现行方案 = 2026-10-03 定稿的 19 个前缀（当日新增 手电筒- / 管理员插件-）；旧 角色- / 武器- / 效果- 已废弃" % ADDON_TOP)
 
 safe_save(wb, OUT)
 print("OK", OUT, os.path.getsize(OUT), "bytes")

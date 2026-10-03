@@ -20,7 +20,7 @@ This skill does four things:
 
 1. **Finds out what each mod actually replaces** — it parses the VPK container and
    reads the real internal resource paths, instead of guessing from the filename.
-2. **Renames to `category-target-original title`** with 17 category prefixes
+2. **Renames to `category-target-original title`** with 19 category prefixes
    (`survivor-`, `si-`, `primary-`, `melee-`, `material-`, `script-`, …).
 3. **Resolves real conflicts newest-wins** — for mods competing over the same target,
    keep the one with the newer workshop `time_updated`, move the loser into `mod备份\`.

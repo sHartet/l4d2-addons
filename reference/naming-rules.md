@@ -19,7 +19,7 @@
 
 ---
 
-## 2. 前缀表（18 个）
+## 2. 前缀表（20 个）
 
 ### 物件域（10）
 | 表名 | 前缀 |
@@ -48,6 +48,21 @@
 - → `地图-`
 - 实测覆盖 13 个（含 `脚本-The Ultimate Mod Testing and Reviewing Area`，它确实是一张测试地图）
 - 已知盲点：`地图-Secret …（fix）`（975 条路径，无 bsp / 无 nav）→ 落 S5 保留
+
+### 专项（2）：`手电筒-` / `管理员插件-`（2026-10-03 新增）
+
+形态**同资源类型**：省略中段（`手电筒-<原标题>`）。
+
+| 前缀 | 判定 | 占比门槛 |
+|---|---|---|
+| `手电筒-` | 只认**手电筒本体**：`^materials/effects/flashlight` 与 `^models/.*flashlight`。**故意不认** `materials/particle/(beam_)?flashlight*` / `flashlight_glow*` —— 那是粒子包/菜单的共享光束与光晕资源，实测有 3 个菜单/粒子 mod 顺带带了它们 | ≥25% |
+| `管理员插件-` | VScript 管理入口（`^scripts/vscripts/[^/]*admin`）+ SourceMod / MetaMod（`^(addons/)?(sourcemod|metamod)/`、`^cfg/sourcemod/`、`\.smx$`）。**不认 `sm_*`**（那是通用 VScript 工具库，如 Turret Mod 的 `sm_utilities.nut`） | ≥25% |
+
+两者都放在 **S4**（物件域判不出来之后），且优先于模型/素材判定。
+
+> **为什么要占比门槛**：实测 `材质-ESC菜单 Kokomi自用版` 4 条路径里有 2 条手电筒贴图（50%），
+> 但它其实是菜单 mod —— 光靠「命中即算」会把它误判成手电筒（附带覆盖陷阱）。
+> 真实成员占比：手电筒 100%、管理员插件 79%。
 
 ### S2 · 物件域 【高置信】
 三个条件同时满足：
@@ -133,7 +148,7 @@
 | 其余物件域 | 官方**中文名** | `主武器-AK-47 突击步枪-…` |
 | 同域多行 | **上位名** | `副武器-手枪-John Wick …` |
 | 只命中横切行 | 横切行名 | `生还者-骨架动画-[25／02／17] (KSEP 1.4) …` |
-| 资源类型前缀 / S5 | **省略中段** | `材质-Informal Skyboxes`、`脚本-Admin System` |
+| 资源类型 / 专项前缀 / S5 | **省略中段** | `材质-Informal Skyboxes`、`管理员插件-Admin System` |
 
 ### 上位名表
 | 域 | 合并的行 | 上位名 |
@@ -260,7 +275,7 @@ if stem == want or stem.startswith(want + '-'):
    - ⚠️ 它的解析规则是「行首就是 `<前缀>-` 的行才算条目」→ **写中文说明时别让续行以 `<前缀>-` 开头**（本次误收过一行）
 2. `set_exempt.json` —— 多件套成员换新名（否则扫描器认不出多件套，会报假冲突）
 3. `mod备份\backup_manifest.md` —— 冲突移走的补行 + 记「kept instead」列旧名对照
-4. `scan_targets.ps1` 的 `$cats` —— 跟着前缀表更新（现 20 项，含旧名兼容）
+4. `scan_targets.ps1` 的 `$cats` —— 跟着前缀表更新（现 22 项，含旧名兼容）
 5. `刷新表格.bat nopause` —— 让 xlsx 跟上新文件名
 
 ## E · `scan_targets.ps1` 覆盖面大幅下降（重要）
@@ -274,7 +289,7 @@ if stem == want or stem.startswith(want + '-'):
 ## F · `效果-` 前缀已废弃
 
 `效果-` 的 2 个 mod 分别归入 `特效-The Particles Manifest` 与 `材质-Infinite Warfare Effects Support`。
-**17 个前缀里不再有 `效果-`。**
+**19 个前缀里不再有 `效果-`。**
 
 
 ---

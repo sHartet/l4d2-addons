@@ -30,6 +30,15 @@ XLSX = L4D2_XLSX
 OUT = os.path.join(W, 'rename_plan.md')
 
 scan = json.load(open(os.path.join(W, 'addons_scan.json'), encoding='utf-8'))
+# ⚠️ 扫描数据过期检测：改名之后如果没重跑「刷新表格.bat」，addons_scan.json 里还是**旧文件名**，
+#    本推演会对着旧名再提一次同样的改名 —— 看起来像「幂等失效」，其实只是数据旧了。
+_stale = [m['file'] for m in scan
+          if m.get('file') and not os.path.exists(os.path.join(L4D2_ADDONS, m['file']))]
+if _stale:
+    print('[WARN] addons_scan.json 已过期：%d 个已扫描的 VPK 在磁盘上已不存在' % len(_stale))
+    print('       例：%s' % '、'.join(_stale[:3]))
+    print('       → 请先跑「刷新表格.bat」（标准流程第 9 步）再重跑本推演。')
+    print()
 lmap = json.load(open(os.path.join(W, 'label_map.json'), encoding='utf-8'))
 
 # rv_paths.json 是按「文件名」索引的：改名后必须重跑，否则查不到路径，
@@ -215,9 +224,21 @@ for m in scan:
             continue
         typ[lab.split('·')[0]] = typ.get(lab.split('·')[0], 0) + nn
     TYPEPRE = {'材质': '材质', '界面': '界面', '特效': '特效', '脚本': '脚本',
-               '音效': '音效', '语音': '音效', '地图': '地图', '模型': '模型'}
+               '音效': '音效', '语音': '音效', '地图': '地图', '模型': '模型',
+               '手电筒': '手电筒', '管理员插件': '管理员插件'}
     got = None
-    if has_model and (typ.get('模型', 0) / total) >= 0.20:
+    # 2026-10-03 新增的两类需要**占比门槛**：防止「顺带带了一张手电筒贴图 / 一个 admin 脚本」
+    # 的 mod 被抢走身份。实测 材质-ESC菜单 Kokomi自用版 4 条路径里 2 条是手电筒贴图（50%），
+    # 但它其实是菜单 mod —— 故收窄规则之余再加门槛。真实成员占比：手电筒 100%、管理员插件 79%。
+    NEWCAT_MIN = 0.25
+    # 管理插件优先：它靠**入口文件**定身份（多数路径仍是 scripts/vscripts/ 通用库），
+    # 所以门槛只需挡住「顺带带一个 admin 模块」的脚本合集包。
+    # 两道判定都放在 S4 内、优先于模型/素材，避免误伤地图（地图走 S1，不会到这儿）。
+    if typ.get('管理员插件', 0) / total >= NEWCAT_MIN:
+        got = '管理员插件'
+    elif typ.get('手电筒', 0) / total >= NEWCAT_MIN:
+        got = '手电筒'
+    elif has_model and (typ.get('模型', 0) / total) >= 0.20:
         got = '模型'
     else:
         for pre, _ in sorted(typ.items(), key=lambda kv: -kv[1]):
@@ -276,7 +297,8 @@ if os.path.exists(_ex):
                 p['why'] += '（规则例外）'
 
 order = ['生还者', '特感', '普感', '主武器', '副武器', '近战', '投掷物', '消耗品',
-         '场景道具', '场景', '模型', '地图', '材质', '界面', '特效', '脚本', '音效', '其它']
+         '场景道具', '场景', '模型', '地图', '材质', '界面', '特效', '脚本', '音效',
+         '手电筒', '管理员插件', '其它']
 plans.sort(key=lambda p: (order.index(p['pre']) if p['pre'] in order else 99, p['stem']))
 
 lines = ['# MOD 重命名干跑计划（工作流 v1.0）\n',

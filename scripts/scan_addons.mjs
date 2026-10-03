@@ -352,6 +352,21 @@ const RULES = [
   [/^particles\/particles_manifest/, '特效·粒子清单'],
   [/^particles\//, '特效·其它粒子'],
   [/^materials\/decals\//, '材质·贴花'],
+  // ---- 手电筒（2026-10-03 新增）----
+  // 只认「手电筒本体」：materials/effects/flashlight*（光斑贴图）与含 flashlight 的模型。
+  // **故意不认** materials/particle/(beam_)?flashlight* 与 flashlight_glow* ——
+  // 那是粒子包/菜单的共享光束与光晕资源，实测有 3 个菜单/粒子 mod 顺带带了它们，
+  // 认了就会把那些 mod 误判成手电筒（附带覆盖陷阱）。
+  // 顺带：muzzleflash（枪口焰）不含 flashlight 子串，天然不会被这条吞掉。
+  [/^materials\/effects\/flashlight/, '手电筒'],
+  [/^models\/.*flashlight/, '手电筒'],
+  // ---- 管理员插件（2026-10-03 新增）----
+  // VScript 管理类入口文件 + SourceMod / MetaMod 交付物。
+  // 只认文件名里的 admin，**不认 sm_***（那是通用 VScript 工具库，如 Turret Mod 的 sm_utilities.nut）。
+  [/^(addons\/)?(sourcemod|metamod)\//, '管理员插件'],
+  [/^cfg\/sourcemod\//, '管理员插件'],
+  [/\.smx$/, '管理员插件'],
+  [/^scripts\/vscripts\/[^/]*admin/, '管理员插件'],
   [/^materials\/skybox\//, '材质·天空盒'],
   [/^materials\/graffiti\//, '材质·涂鸦'],
   [/^materials\/models\/infected\//, '材质·感染者贴图'],

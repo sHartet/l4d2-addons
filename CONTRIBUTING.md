@@ -175,15 +175,22 @@ prefix instead of splitting on `-`, because targets legitimately contain dashes
 2. Map the new label to exactly one workbook row in `scripts/enrich_ref_xlsx.py`
    (invariant 2).
 3. Add an assertion for it in `scripts/verify_rules.mjs` — that file is the regression
-   suite for classification and currently runs 49 classification assertions plus 6
+   suite for classification and currently runs 67 classification assertions plus 6
    normalisation assertions.
 4. Run:
 
 ```powershell
-node scripts\verify_rules.mjs          # all assertions pass
-python scripts\verify_fixes.py         # 不合格条目数 == 0
-python scripts\verify_overlaps.py      # no false conflicts
-python scripts\self_test.py            # end-to-end still green
+# IMPORTANT: these verifiers read config.json to find the working directory, and their
+# fallback assumes the script sits in <workDir>\<scriptsDir>\. Running them straight from
+# a fresh clone's scripts\ folder does NOT work (they would look for <repo>\_work\...).
+# So run the deployed copies, or point L4D2_HOME at a configured working directory first.
+$env:L4D2_HOME = "<workDir>"            # or just cd into <workDir>\_work\
+
+node   <workDir>\_work\verify_rules.mjs        # all assertions pass (currently 67 + 6)
+python <workDir>\_work\verify_fixes.py         # 不合格条目数 == 0
+python <workDir>\_work\verify_overlaps.py      # no false conflicts
+python scripts\self_test.py                     # end-to-end still green (uses a temp dir,
+                                                 # so this one DOES work from the clone)
 ```
 
 If your rule is object-domain, also confirm `probe_unclassified.mjs` on a real mod

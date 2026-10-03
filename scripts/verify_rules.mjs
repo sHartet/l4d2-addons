@@ -92,6 +92,33 @@ const CASES = [
   ['resource/closecaption_schinese.txt', '界面·文本与字幕'],
   ['maps/c1m1_hotel.bsp', '地图·战役'],
   ['maps/c1m1_hotel.nav', '地图·附属文件（导航与光照）'],
+
+  // ---- 2026-10-03 新增两类：手电筒- / 管理员插件- ----
+  // 手电筒正例：**只认手电筒本体**（effects/flashlight 光斑贴图 + 含 flashlight 的模型）
+  ['materials/effects/flashlight001.vtf', '手电筒'],
+  ['models/weapons/w_models/w_flashlight.mdl', '手电筒'],
+  // 回归护栏：粒子包/菜单里的共享光束与光晕**不算**手电筒 mod。
+  //（实测 材质-ESC菜单 Kokomi自用版 4 条路径里 2 条是 beam_flashlight，曾被误判成手电筒）
+  ['materials/particle/beam_flashlight.vmt', '材质·环境贴图'],
+  ['materials/particle/beam_flashlight.vtf', '材质·环境贴图'],
+  ['materials/particle/flashlight_glow_noz.vmt', '材质·环境贴图'],
+  // 回归护栏：枪口焰 / 相机闪光 / 闪光弹 / 引信 **都不含** flashlight 子串，不许被手电筒规则吞掉
+  //（这就是为什么规则不用 /flash/）
+  ['materials/effects/muzzleflashx.vtf', '材质·环境贴图'],
+  ['materials/particles/ins_muzzle_flash_spread.vtf', '材质·环境贴图'],
+  ['sound/glub5/camera_flash.mp3', '音效·未列入表格'],
+  ['materials/models/re8_flash_grenade', '材质·模型贴图'],
+  ['particles/pipe_fuseflash.pcf', '特效·其它粒子'],
+  // 管理员插件正例：VScript 管理入口 + SourceMod / MetaMod 交付物
+  ['scripts/vscripts/admin_system.nut', '管理员插件'],
+  ['scripts/vscripts/admin_system', '管理员插件'],
+  ['scripts/vscripts/adminmenu.nut', '管理员插件'],
+  ['addons/sourcemod/plugins/basecomm.smx', '管理员插件'],
+  ['addons/metamod/metaplugins.ini', '管理员插件'],
+  ['cfg/sourcemod/sm_basecommands.cfg', '管理员插件'],
+  // 回归护栏：通用 VScript 工具库不许被当管理插件（规则只认文件名里的 admin，不认 sm_*）
+  ['scripts/vscripts/director_base_addon.nut', '脚本·VScript'],
+  ['scripts/vscripts/sm_utilities.nut', '脚本·VScript'],
 ];
 
 const fails = [];
