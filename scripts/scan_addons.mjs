@@ -367,6 +367,10 @@ const RULES = [
   [/^cfg\/sourcemod\//, '管理员插件'],
   [/\.smx$/, '管理员插件'],
   [/^scripts\/vscripts\/[^/]*admin/, '管理员插件'],
+  // scripts/clientmenu.txt = 客户端菜单定义；脚本类管理菜单靠它注册条目，
+  // 文件名里根本没有 admin，只能靠这个路径认（实测全库仅 1 个 mod 带它）。
+  // ⚠️ 不能用更宽的 /menu/ —— 那会命中 materials/vgui/ 下的界面贴图。
+  [/^scripts\/clientmenu\.txt$/, '管理员插件'],
   [/^materials\/skybox\//, '材质·天空盒'],
   [/^materials\/graffiti\//, '材质·涂鸦'],
   [/^materials\/models\/infected\//, '材质·感染者贴图'],

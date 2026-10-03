@@ -467,7 +467,7 @@ OTHER = [
     ["36", "其他", "喷漆与本地资源", "materials/vgui/logos/", "玩家自定义喷漆走本地文件夹或自定义 VPK", "界面-"],
     ["37", "其他", "手电筒", "materials/effects/flashlight001.vtf、materials/particle/beam_flashlight.vmt、materials/particle/flashlight_glow_noz.vmt",
      "只认手电筒**本体**：materials/effects/flashlight*（光斑贴图）与含 flashlight 的模型。粒子包/菜单里的 particle/beam_flashlight* 与 flashlight_glow* 是共享资源，不算手电筒 mod", "手电筒-"],
-    ["38", "其他", "管理员插件", "scripts/vscripts/*admin*.nut、addons/sourcemod/、*.smx、addons/metamod/",
+    ["38", "其他", "管理员插件", "scripts/vscripts/*admin*.nut、scripts/clientmenu.txt、addons/sourcemod/、*.smx、addons/metamod/",
      "服务器 / 房间管理工具（VScript 管理菜单、SourceMod 插件）。含任一入口文件即定身份，不靠路径占比", "管理员插件-"],
 ]
 OTHER_EN = ["HUD Textures", "Health Bar", "Crosshair", "Infected Icons",

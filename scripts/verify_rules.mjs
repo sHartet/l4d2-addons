@@ -116,6 +116,8 @@ const CASES = [
   ['addons/sourcemod/plugins/basecomm.smx', '管理员插件'],
   ['addons/metamod/metaplugins.ini', '管理员插件'],
   ['cfg/sourcemod/sm_basecommands.cfg', '管理员插件'],
+  // clientmenu.txt = 脚本类管理菜单的注册文件（Admin Menu 2.0 CN 内部只有这一个文件）
+  ['scripts/clientmenu.txt', '管理员插件'],
   // 回归护栏：通用 VScript 工具库不许被当管理插件（规则只认文件名里的 admin，不认 sm_*）
   ['scripts/vscripts/director_base_addon.nut', '脚本·VScript'],
   ['scripts/vscripts/sm_utilities.nut', '脚本·VScript'],

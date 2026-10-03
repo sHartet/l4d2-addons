@@ -56,7 +56,7 @@
 | 前缀 | 判定 | 占比门槛 |
 |---|---|---|
 | `手电筒-` | 只认**手电筒本体**：`^materials/effects/flashlight` 与 `^models/.*flashlight`。**故意不认** `materials/particle/(beam_)?flashlight*` / `flashlight_glow*` —— 那是粒子包/菜单的共享光束与光晕资源，实测有 3 个菜单/粒子 mod 顺带带了它们 | ≥25% |
-| `管理员插件-` | VScript 管理入口（`^scripts/vscripts/[^/]*admin`）+ SourceMod / MetaMod（`^(addons/)?(sourcemod|metamod)/`、`^cfg/sourcemod/`、`\.smx$`）。**不认 `sm_*`**（那是通用 VScript 工具库，如 Turret Mod 的 `sm_utilities.nut`） | ≥25% |
+| `管理员插件-` | VScript 管理入口（`^scripts/vscripts/[^/]*admin`、`^scripts/clientmenu\.txt$`）+ SourceMod / MetaMod（`^(addons/)?(sourcemod|metamod)/`、`^cfg/sourcemod/`、`\.smx$`）。**不认 `sm_*`**（那是通用 VScript 工具库，如 Turret Mod 的 `sm_utilities.nut`） | ≥25% |
 
 两者都放在 **S4**（物件域判不出来之后），且优先于模型/素材判定。
 
