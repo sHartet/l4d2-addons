@@ -157,7 +157,7 @@ bootstrap 会自动做完：写 `config.json` → 把脚本铺进 `<workDir>\_wo
    批次 JSON（UTF-8，中文的唯一来源）字段：`id`（**手工件写 `""` → 不建 `.url`**）/ `src`（手工件的源文件名）/
    `base`（直接指定成品名主体，多件套共用前缀时用它）/ `cat`+`target`+`title`（未给 base 时按 `<cat>[-<target>]-<title>` 拼）。
 
-   它自带：Windows 非法字符全角化、120 字符截断、**目标名被占用则整条 SKIP**（不覆盖）、vpk+jpg+url 三件同步、
+   它自带：Windows 非法字符全角化、**主干 >63 字节自动截断标题**、**目标名被占用则整条 SKIP**（不覆盖）、vpk+jpg+url 三件同步、
    日志写 `<批次名>_log.txt`。干跑输出的 `OK / SKIP` 数必须核对过再 `-Apply`。
 6. **冲突检查**：同一替换对象下有多个 mod 时 → **还在 `workshopDir` 里的那件无条件算新**，
    其余连同 jpg/url 移入 `backupDir`；用 `resolve_conflicts.ps1 -Batch <json>`（**默认干跑**，`-Apply` 执行），
@@ -205,7 +205,12 @@ bootstrap 会自动做完：写 `config.json` → 把脚本铺进 `<workDir>\_wo
 同域多行时用**上位名**（手枪 / 霰弹枪 / Francis / Witch / Boomer / Tank）。
 
 **原标题原样保留**（尊重发布者），只把 Windows 非法字符换成全角
-`\ / : * ? " < > |` → `＼ ／ ： ＊ ？ ＂ ＜ ＞ ｜`，清理换行/制表符/结尾句点，超长截断至 120 字符。
+`\ / : * ? " < > |` → `＼ ／ ： ＊ ？ ＂ ＜ ＞ ｜`，清理换行/制表符/结尾句点，超长在**标题段**截断。
+
+⚠️ **硬约束：文件名主干（不含 `.vpk`）≤ 63 个 ANSI 字节**（2026-10-03 实战定位）。
+L4D2 用定长名字缓冲，**主干超 63 字节的包根本不挂载**：不在「附加内容」列表里出现、里面的模型/贴图/声音全不生效、
+**日志零报错**（最容易被误判成 mod 本身做得烂）。实测：82B / 88B 全失效；同一份字节改名成 41B 立刻生效；58B / 61B 一直正常。
+`plan_v4.py` 的 `cap_name()` 与 `consolidate5.ps1` 的 `CapName()` 会自动把超长标题截到装得下（优先断词，只动标题段）。
 
 ⚠️ 完整判据（S1–S5、邻接标签映射、横切行表、上位名表、规则例外）见 **`reference/naming-rules.md`**，别凭印象写。
 
@@ -255,7 +260,7 @@ bootstrap 会自动做完：写 `config.json` → 把脚本铺进 `<workDir>\_wo
 | `verify_overlaps.py` | 列出被 ≥2 个 mod 覆盖的标签，分「多件套 / 分类级 / 多目标聚合 / 仅地图附带 / ⚠真冲突」 |
 | `probe_unclassified.mjs` | 打印某 mod 的路径分类明细与未归类项 |
 | `verify_ps1_ascii.py` | **护栏**：检查所有 `.ps1` 是否 100% ASCII。PS 5.1 会把无 BOM 的 UTF-8 `.ps1` 按 GBK 解析，**哪怕中文只出现在注释里**也会打乱解析、吃掉后一行（真实事故：一句中文注释让 `$WS = ...` 整行消失） |
-| `self_test.py` | **全链路自测**：在临时目录里模拟「全新用户 + 空库」，跑 9 个阶段（bootstrap → 造 VPK → 刷新 → 扫 workshop 暂存件 → 搬迁 → 三件校验 → 再刷新 → 命名幂等 → 冲突/校验/ASCII 护栏）。**改任何脚本前后都跑它** —— 不碰真实库，失败会保留临时目录供排查 |
+| `self_test.py` | **全链路自测**：在临时目录里模拟「全新用户 + 空库」，跑 12 个阶段（bootstrap → 造 VPK → 刷新 → 扫 workshop 暂存件 → 搬迁 → 三件校验 → 再刷新 → 命名幂等 → 冲突/校验/ASCII 护栏 → **超长名按 63 字节截断**）。**改任何脚本前后都跑它** —— 不碰真实库，失败会保留临时目录供排查 |
 | `workspace_backup.ps1 -Mode save\|restore` | 工作区镜像备份（robocopy /MIR），防意外清空 |
 
 **冲突判定以「表格标签链路」为准**（`addons_scan.json` + `label_map.json` + `verify_overlaps.py`），

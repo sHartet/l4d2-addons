@@ -262,6 +262,43 @@ def main():
         need(os.path.exists(mf) and old in open(mf, encoding='utf-8').read(), '清单没记这行')
         return '负向拦截OK / 干跑files=1 / 旧件进 mod备份 + 清单加行 / 胜方未动'
 
+    def s4b():
+        # 引擎只挂载「文件名主干（不含 .vpk）<= 63 ANSI 字节」的包；超长原标题必须按规则截断，
+        # 且截断后推演要认为它已合规（幂等），否则每次整理都会反复截同一个名字。
+        long_title = ('M200 光海夜岚 super duper long original title that must be truncated '
+                      'by the rule because the engine refuses to mount it otherwise')
+        sp = os.path.join(root, 'spec_long.json')
+        with open(sp, 'w', encoding='utf-8') as f:
+            json.dump([{'path': 'models/weapons/melee/w_crowbar.mdl', 'text': 'IDST CROWBAR-LONGNAME'}],
+                      f, ensure_ascii=False)
+        src = '9999000002.vpk'
+        r = sh([node, VPKWRITE, os.path.join(WS, src), sp])
+        need(r.returncode == 0, 'vpkwrite 失败: %s' % r.stderr[-300:])
+        bp = os.path.join(WD, 'ws_batch_len.json')
+        with open(bp, 'w', encoding='utf-8') as f:
+            json.dump([{'id': '', 'src': src, 'cat': '近战', 'target': '撬棍', 'title': long_title}],
+                      f, ensure_ascii=False, indent=1)
+        before = set(os.listdir(AD))
+        con = os.path.join(WD, 'consolidate5.ps1')
+        ps = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', con, '-Batch', bp]
+        dry = sh(ps, cwd=WORK)
+        need('apply=False ok=1 skip=0' in dry.stdout, '干跑异常: %s' % dry.stdout.strip()[-200:])
+        ap = sh(ps + ['-Apply'], cwd=WORK)
+        need('apply=True ok=1 skip=0' in ap.stdout, '执行异常: %s' % ap.stdout.strip()[-200:])
+        vpks = [f for f in sorted(set(os.listdir(AD)) - before) if f.endswith('.vpk')]
+        need(len(vpks) == 1, '新入库文件异常: %s' % vpks)
+        stem = vpks[0][:-4]
+        nb = len(stem.encode('gbk', errors='replace'))
+        need(nb <= 63, '主干未被截断: %dB  %s' % (nb, stem))
+        need(stem.startswith('近战-撬棍-'), '前缀/替换对象被切坏: %s' % stem)
+        need(len(stem) < len('近战-撬棍-' + long_title), '名字根本没被缩短')
+        r = bat()
+        need(r.returncode == 0 and '"unclassifiedPaths": 0' in r.stdout, '截断后刷新失败')
+        r = sh([PYEXE, os.path.join(WD, 'plan_v4.py')], cwd=WORK)
+        m = re.search(r'需改名\s*(\d+)\s*个', r.stdout)
+        need(m and m.group(1) == '0', '截断后推演仍要求改名 %s 条' % (m.group(1) if m else '?'))
+        return '原标题 %d 字符 -> 主干 %dB（前缀保留 + 推演幂等）' % (len(long_title), nb)
+
     def s8():
         out = []
         r = sh(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass',
@@ -289,6 +326,7 @@ def main():
                    ('S6b 人工标签覆盖（label_override）', s6b),
                    ('S7 命名推演幂等', s7),
                    ('S7b 冲突留新移旧（resolve_conflicts）', s7b),
+                   ('S4b 超长名按 63 字节截断', s4b),
                    ('S8 冲突扫描 + 校验 + ASCII 护栏', s8)):
         stage(nm, fn)
 

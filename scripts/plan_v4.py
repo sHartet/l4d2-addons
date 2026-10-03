@@ -259,20 +259,45 @@ for p in list(plans):
         if p['stem'] != main and p['stem'].startswith(main + '-'):
             byname[main]['members'] = byname[main].get('members', []) + [p['stem']]
 
+STEM_MAX_BYTES = 63
+
+def _stem_bytes(s):
+    """ANSI (GBK) byte length of a name stem - what the L4D2 addon loader really sees."""
+    return len(s.encode('gbk', errors='replace'))
+
+def cap_name(s):
+    """L4D2 mounts an addon only if its file-name stem fits the engine's ANSI char[64]
+    name buffer (<= 63 ANSI bytes).  Verified in game 2026-10-03: an 82-byte stem never
+    mounted (no addon-list entry, assets never loaded), a 41-byte copy of the same VPK
+    mounted at once, 58- and 61-byte stems have always worked."""
+    if _stem_bytes(s) <= STEM_MAX_BYTES:
+        return s
+    cut = len(s)
+    while cut > 1 and _stem_bytes(s[:cut]) > STEM_MAX_BYTES:
+        cut -= 1
+    t = s[:cut]
+    sp = t.rfind(' ')
+    if sp > 0 and sp >= int(cut * 0.6):
+        t = t[:sp]
+    return t.rstrip(' -.')
+
 def newname(p):
     """<旧前缀>-<旧替换对象>-<标题>  ->  <新前缀>-<新替换对象>-<标题>
     幂等保证：若当前名已经以「新前缀-新替换对象」开头，原样保留（不再动）。
-    这样即使新替换对象自带短横（AK-47 / M-16），重复跑也不会被切坏。"""
+    这样即使新替换对象自带短横（AK-47 / M-16），重复跑也不会被切坏。
+    最后统一过 cap_name：超长名（>63 ANSI 字节）会被截断，避免 L4D2 不加载。"""
     stem, pre, tgt = p['stem'], p['pre'], p['tgt']
     rest = stem.split('-', 1)[1] if '-' in stem else stem
     want = ('%s-%s' % (pre, tgt)) if tgt else pre
     if stem == want or stem.startswith(want + '-'):
-        return stem
-    if not tgt:
-        return '%s-%s' % (pre, rest)
-    # 旧名里「旧替换对象」是旧前缀之后的第一个短横段；旧替换对象本身不含短横
-    body = rest.split('-', 1)[1] if '-' in rest else rest
-    return '%s-%s-%s' % (pre, tgt, body) if body else '%s-%s' % (pre, tgt)
+        out = stem
+    elif not tgt:
+        out = '%s-%s' % (pre, rest)
+    else:
+        # 旧名里「旧替换对象」是旧前缀之后的第一个短横段；旧替换对象本身不含短横
+        body = rest.split('-', 1)[1] if '-' in rest else rest
+        out = ('%s-%s-%s' % (pre, tgt, body)) if body else ('%s-%s' % (pre, tgt))
+    return cap_name(out)
 
 for p in plans:
     p['new'] = newname(p)

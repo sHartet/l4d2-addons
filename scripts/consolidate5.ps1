@@ -41,6 +41,23 @@ function SanitizeName([string]$s) {
   return $s
 }
 
+# L4D2 refuses to mount an addon whose file-name stem does not fit the engine's
+# ANSI char[64] name buffer: keep the stem (file name without .vpk) within 63 ANSI
+# bytes.  Verified in game 2026-10-03: 82- and 88-byte stems never mounted (no
+# addon-list entry, assets never loaded), a 41-byte copy of the very same VPK
+# mounted at once, while 58- and 61-byte stems have always worked.
+$ANSI_ENC = [System.Text.Encoding]::GetEncoding(0)
+$STEM_MAX_BYTES = 63
+function CapName([string]$s) {
+  if ($ANSI_ENC.GetByteCount($s) -le $STEM_MAX_BYTES) { return $s }
+  $cut = $s.Length
+  while ($cut -gt 1 -and $ANSI_ENC.GetByteCount($s.Substring(0, $cut)) -gt $STEM_MAX_BYTES) { $cut-- }
+  $t = $s.Substring(0, $cut)
+  $sp = $t.LastIndexOf(' ')
+  if ($sp -gt 0 -and $sp -ge [int]($cut * 0.6)) { $t = $t.Substring(0, $sp) }
+  return $t.TrimEnd([char[]]@(' ', '-', '.'))
+}
+
 $items = Get-Content -LiteralPath $Batch -Encoding UTF8 -Raw | ConvertFrom-Json
 
 $log = @()
@@ -60,12 +77,13 @@ foreach ($it in $items) {
 
   # target base name: explicit 'base' wins, otherwise <cat>[-<target>]-<title>
   if ($baseOverride -ne '') {
-    $base = SanitizeName $baseOverride
+    $rawBase = SanitizeName $baseOverride
   } else {
     $b = $cat
     if ($tgt -ne '') { $b = $b + '-' + $tgt }
-    $base = $b + '-' + (SanitizeName $ttl)
+    $rawBase = $b + '-' + (SanitizeName $ttl)
   }
+  $base = CapName $rawBase
 
   $srcVpk = Join-Path $WS $srcName
   $srcJpg = Join-Path $WS ($stem + '.jpg')
@@ -77,6 +95,7 @@ foreach ($it in $items) {
   $rec = [ordered]@{
     Id = $id; Cat = $cat; Target = $tgt; Title = $ttl; Src = $srcName
     NewBase = $base; Manual = $isManual
+    Capped = ($base -ne $rawBase)
     HasVpk = (Test-Path -LiteralPath $srcVpk)
     HasJpg = (Test-Path -LiteralPath $srcJpg)
     Url = if ($isManual) { 'SKIP (manual, no workshop id)' } else { 'create' }

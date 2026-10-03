@@ -22,8 +22,9 @@ python scripts\self_test.py
 ```
 
 `self_test.py` simulates a brand-new user with an empty library inside a temp
-directory and walks nine stages (bootstrap -> fake VPKs -> refresh -> workshop scan ->
-migration -> verification -> re-refresh -> naming idempotence -> conflict/validation).
+directory and walks twelve stages (bootstrap -> fake VPKs -> refresh -> workshop scan ->
+migration -> verification -> re-refresh -> naming idempotence -> conflict/validation ->
+over-long-name truncation).
 It never touches a real library, and **keeps the temp folder if a stage fails** so you
 can inspect it.
 
@@ -166,6 +167,21 @@ The implementation guards this by matching an existing name against the expected
 prefix instead of splitting on `-`, because targets legitimately contain dashes
 (`AK-47 突击步枪`). Any change to naming logic has to keep `plan_v4.py` reporting
 `需改名 0`.
+
+### 11. A file-name stem must fit in 63 ANSI bytes
+
+L4D2 keeps the addon file name in a fixed ANSI buffer. A VPK whose name **stem** (file
+name without `.vpk`) is longer than **63 ANSI bytes is silently never mounted**: it does
+not show up in the in-game add-on list, none of its assets load, and the engine logs
+nothing — so it looks like a badly made mod rather than a naming problem. Measured in
+game on 2026-10-03: 82- and 88-byte stems dead; a 41-byte *copy of the very same bytes*
+worked immediately; 58- and 61-byte stems have always worked.
+
+`plan_v4.py::cap_name()` and `consolidate5.ps1::CapName()` truncate the **title segment
+only** (word boundary first, then character boundary) so the stem fits. The regression
+test is `self_test.py` stage **S4b**: it migrates a mod whose title is 125 characters and
+asserts the resulting stem is <= 63 bytes, keeps its `前缀-替换对象-` head, and that the
+planner afterwards still reports `需改名 0`.
 
 ---
 

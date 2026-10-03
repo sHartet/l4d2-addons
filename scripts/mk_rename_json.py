@@ -42,7 +42,8 @@ for line in io.open(W + r'\rename_plan.md', encoding='utf-8').read().splitlines(
     if old == new:
         continue
     ok = old not in HOLD
-    rows.append({'old': old, 'new': new, 'len': len(new), 'held': not ok})
+    nbytes = len(new.encode('gbk', errors='replace'))
+    rows.append({'old': old, 'new': new, 'len': len(new), 'bytes': nbytes, 'held': not ok})
 
 json.dump(rows, io.open(W + r'\rename_batch.json', 'w', encoding='utf-8'),
           ensure_ascii=False, indent=1)
@@ -55,9 +56,15 @@ print('超过 120 字符上限的：%d 条' % len(over))
 for r in over:
     print('   %3d  %s' % (r['len'], r['new']))
 print()
-print('最长 5 条新名：')
-for r in sorted(todo, key=lambda x: -x['len'])[:5]:
-    print('   %3d  %s' % (r['len'], r['new']))
+# L4D2 只挂载「文件名主干（不含 .vpk）<= 63 ANSI 字节」的包，超了就是静默失效
+overb = [r for r in todo if r['bytes'] > 63]
+print('超过 63 字节主干上限的：%d 条  （应为 0；非 0 说明 cap 逻辑没生效）' % len(overb))
+for r in overb:
+    print('   %3dB  %s' % (r['bytes'], r['new']))
+print()
+print('最长 5 条新名（按 ANSI 字节）：')
+for r in sorted(todo, key=lambda x: -x['bytes'])[:5]:
+    print('   %3dB  %s' % (r['bytes'], r['new']))
 print()
 print('暂缓的两条：')
 for r in rows:
