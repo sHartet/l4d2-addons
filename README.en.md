@@ -48,6 +48,37 @@ that `.bat` re-scans and refreshes everything** — no agent required.
   _work\                            <- all tools + intermediate data
 ```
 
+## Workflow
+
+Say *"tidy up my L4D2 mods"* and it walks these five steps:
+
+1. **Move into `addons\` and normalise the names** — subscribed VPKs are moved out of `workshop\` into `addons\`,
+   renamed to `<category>-<target>-<original title>`, and given a `.url` shortcut (double-click to open the workshop page).
+   e.g. `3778253592.vpk` → `主武器-AK-47 突击步枪-<author's title>.vpk`.
+   Once moved, the mod **no longer depends on workshop loading**, and Steam can no longer silently re-download over it.
+   - Hand-dropped VPKs (filename is not a bare numeric id) have **no workshop id, so no `.url`** and they are excluded from unsubscribing
+   - The now-empty `workshop\` folder is **kept** (deleting it breaks Steam's downloads)
+2. **Build a workbook that keeps itself up to date** — 16 sheets marking every replaceable object as
+   **replaced / not replaced / only covered incidentally by a map pack**, naming the mod responsible,
+   plus "my mod list" and "replacement coverage" sheets. Double-click `刷新表格.bat` to rescan and rebuild; no agent needed.
+3. **Detect conflicts and keep the newest** — grouped by replacement target (weapons / survivors / throwables / consumables / props…),
+   the newest `time_updated` wins (anything freshly in `workshop\` counts as newest). Losers move to `mod备份\` together with their
+   `.jpg` / `.url`, and the reason plus SHA-1 is recorded in `mod备份\backup_manifest.md`.
+   - **Multi-part sets are exempt**: a mod's main body plus its materials / scope / sound add-ons are meant to coexist
+   - Exemptions are matched against the **declared member list** in `_work\set_exempt.json`, **not** against a group key —
+     an undeclared newcomer in the same group is a genuine conflict
+   - Your own calls win: anything in `mod白名单.txt` is skipped, and you can revoke a whitelist entry later
+4. **Asks before unsubscribing** (double-check) — it stops and asks once, spelling out what would be unsubscribed,
+   why it matters, and how to undo it. On your go-ahead it unsubscribes automatically, so you never touch the workshop page.
+   - Why it matters: workshop delivery drops the VPK straight into `workshop\`; without unsubscribing, the next game launch
+     re-downloads everything you just moved
+   - Scope is safe: only `appid=550` is touched; other games' subscriptions are byte-for-byte unchanged in testing
+   - **Authorisation does not carry across sessions** — only an explicit "don't ask" in the current session skips the prompt
+5. **Refresh the workbook and save the run to memory** — one last `刷新表格.bat` so the scan data matches the disk
+   (rename without rescanning and the planner re-proposes the same renames from stale data — it warns with
+   `[WARN] addons_scan.json is stale`), then the outcome is condensed into **one compact memory entry** so the next
+   session can pick it up without re-exploring, **saving tokens**.
+
 ## Design notes
 
 - **Confidence tiers.** Classification walks
