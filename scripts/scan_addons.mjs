@@ -329,6 +329,9 @@ const RULES = [
   [/^[^\/]*\.(jpg|jpeg|png|bmp|gif)$/i, '打包元文件'],  // 根目录下的预览图
   [/\.(xlsx|xls|docx|pdf)$/i, '打包元文件'],
   [/\.vpk$/i, '打包元文件（嵌套 VPK）'],
+  // 地图编译时引擎写出的立方体贴图构建产物（.tga 截图 / .pfm 烘焙数据），在 VPK 根目录。
+  // 实测来源：The Arrival 带了 42 条，全库其它 mod 都没有。不是游戏资源，但也不该算「未归类」。
+  [/^cubemap_screenshots\//, '打包元文件（cubemap 构建产物）'],
   // 界面 / 特效 / 材质 / 其他 —— 同样一行一个唯一标签（缺陷 3）
   [/^materials\/vgui\/healthbar_/, '界面·HUD-生命条'],
   [/^materials\/vgui\/(boomer|hunter|smoker|charger|jockey|spitter|hulk|witch)\./, '界面·HUD-感染者图标'],
@@ -384,6 +387,9 @@ const RULES = [
   [/^missions\//, '脚本·战役任务'],
   [/^modes\//, '脚本·游戏模式'],
   [/^scripts\/vscripts\//, '脚本·VScript'],
+  // 顶层 vscripts/ —— 非标准布局（正常在 scripts/vscripts/ 下），本体仍是 VScript。
+  // 实测来源：Stronger Flashlight [REUPLOAD] 把 nut 放在了 VPK 根目录的 vscripts/ 里。
+  [/^vscripts\//, '脚本·VScript'],
   [/^scripts\/melee\//, '脚本·近战数值'],
   [/^scripts\/weapon/, '脚本·武器数值'],
   [/^scripts\//, '脚本·其他'],

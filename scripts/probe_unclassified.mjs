@@ -19,7 +19,7 @@ import path from 'node:path';
 const W = L4D2_WORK;
 const A = L4D2_ADDONS;
 
-const src = fs.readFileSync(W + 'scan_addons.mjs', 'utf8');
+const src = fs.readFileSync(path.join(W, 'scan_addons.mjs'), 'utf8');
 const s0 = src.indexOf('const GAME_ROOTS = [');
 const e0 = src.indexOf('\n];', src.indexOf('const RULES = ['));
 const { RULES, normalizePath } = new Function(src.slice(s0, e0 + 3) + '\nreturn { RULES, normalizePath };')();

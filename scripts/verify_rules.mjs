@@ -118,6 +118,10 @@ const CASES = [
   ['cfg/sourcemod/sm_basecommands.cfg', '管理员插件'],
   // clientmenu.txt = 脚本类管理菜单的注册文件（Admin Menu 2.0 CN 内部只有这一个文件）
   ['scripts/clientmenu.txt', '管理员插件'],
+  // ---- 2026-10-03 新增：非标准布局与构建产物（本批 5 件实测补的）----
+  ['vscripts/director_base_addon.nut', '脚本·VScript'],          // 顶层 vscripts/（正常在 scripts/ 下）
+  ['cubemap_screenshots/dc3m6_stationup.tga', '打包元文件（cubemap 构建产物）'],
+  ['cubemap_screenshots/dc3m5_plantup.pfm', '打包元文件（cubemap 构建产物）'],
   // 回归护栏：通用 VScript 工具库不许被当管理插件（规则只认文件名里的 admin，不认 sm_*）
   ['scripts/vscripts/director_base_addon.nut', '脚本·VScript'],
   ['scripts/vscripts/sm_utilities.nut', '脚本·VScript'],
