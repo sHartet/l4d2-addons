@@ -363,6 +363,11 @@ const RULES = [
   // 顺带：muzzleflash（枪口焰）不含 flashlight 子串，天然不会被这条吞掉。
   [/^materials\/effects\/flashlight/, '手电筒'],
   [/^models\/.*flashlight/, '手电筒'],
+  // **专项分类优先于资源类型**：手电筒类的 VScript（放大照亮范围等）也归 手电筒-，
+  // 同 管理员插件- 的道理（管理菜单的 VScript 归 管理员插件-，不是 脚本-）。
+  // 实测来源：脚本-手电筒放大Flashlight 的 scripts/vscripts/flashlight.nut。
+  [/^scripts\/vscripts\/[^/]*flashlight/, '手电筒'],
+  [/^vscripts\/[^/]*flashlight/, '手电筒'],
   // ---- 管理员插件（2026-10-03 新增）----
   // VScript 管理类入口文件 + SourceMod / MetaMod 交付物。
   // 只认文件名里的 admin，**不认 sm_***（那是通用 VScript 工具库，如 Turret Mod 的 sm_utilities.nut）。

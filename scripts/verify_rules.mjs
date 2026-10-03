@@ -122,6 +122,9 @@ const CASES = [
   ['vscripts/director_base_addon.nut', '脚本·VScript'],          // 顶层 vscripts/（正常在 scripts/ 下）
   ['cubemap_screenshots/dc3m6_stationup.tga', '打包元文件（cubemap 构建产物）'],
   ['cubemap_screenshots/dc3m5_plantup.pfm', '打包元文件（cubemap 构建产物）'],
+  // 专项优先于资源类型：手电筒类 VScript 归 手电筒-，不是 脚本-
+  ['scripts/vscripts/flashlight.nut', '手电筒'],
+  ['vscripts/flashlight_fix.nut', '手电筒'],
   // 回归护栏：通用 VScript 工具库不许被当管理插件（规则只认文件名里的 admin，不认 sm_*）
   ['scripts/vscripts/director_base_addon.nut', '脚本·VScript'],
   ['scripts/vscripts/sm_utilities.nut', '脚本·VScript'],
