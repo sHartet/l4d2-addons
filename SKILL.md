@@ -159,8 +159,16 @@ bootstrap 会自动做完：写 `config.json` → 把脚本铺进 `<workDir>\_wo
 
    它自带：Windows 非法字符全角化、120 字符截断、**目标名被占用则整条 SKIP**（不覆盖）、vpk+jpg+url 三件同步、
    日志写 `<批次名>_log.txt`。干跑输出的 `OK / SKIP` 数必须核对过再 `-Apply`。
-6. **冲突检查**：同一替换对象下有多个 mod → 保留最新、其余连同 jpg/url 移入 `backupDir`，
-   并在 `<backupDir>\backup_manifest.md` 追加一行（写明理由 + 保留了哪份）
+6. **冲突检查**：同一替换对象下有多个 mod 时 → **还在 `workshopDir` 里的那件无条件算新**，
+   其余连同 jpg/url 移入 `backupDir`；用 `resolve_conflicts.ps1 -Batch <json>`（**默认干跑**，`-Apply` 执行），
+   它会追加 `<backupDir>\backup_manifest.md` 的行（写明理由 + 保留了哪份）。
+   - ⚠️ **核心标准（用户明确指定，别记错）：未整理的 —— 即还在 `workshopDir` 内的 —— 永远按新算。**
+     工坊 `time_updated` **只在两件都来自 `workshopDir` 时**才用于分胜负；
+     `addons` 里的常驻件再新，也赢不了刚从 `workshopDir` 出来的那件。
+   - 工具只负责「搬 + 记账」，**判谁赢是调用方的决定** —— 因为「哪件是工坊件」只在整理过程中存在，
+     搬完都躺在 `addons` 里就分不出来了。
+   - **安全不变式**：`keep` 在 `addons` 里没有 `.vpk` 时**整条拒绝执行**，绝不把某个替换对象搬空。
+   - 豁免：`mod白名单.txt` 里的条目跳过；多件套只按 `set_exempt.json` **声明过的成员**判定，**不按组键**。
 7. **清理**：`workshopDir` 清空后**保留空目录**（删了会影响 Steam 下载）
 8. **取消订阅** —— ⚠️ **每次执行前都必须停下来问用户一次，不要自作主张。**
    - **为什么必须做**：L4D2 的工坊投递是把 `<id>.vpk` 直接放进 `workshop\`。你把 VPK 搬走后，
@@ -232,6 +240,7 @@ bootstrap 会自动做完：写 `config.json` → 把脚本铺进 `<workDir>\_wo
 |---|---|
 | `scan_workshop.ps1` | **扫 `workshopDir` 暂存件**，用与扫库完全相同的分类规则 → `workshop_scan.json`。**新订阅件的命名证据靠它**（`scan_addons.mjs` 只扫 addons 顶层，看不到暂存件） |
 | `consolidate5.ps1 -Batch <json> [-Apply]` | **`workshop\` → `addons\`**：搬 vpk+jpg、按 `<分类>-<替换对象>-<原标题>` 改名、`id` 非空才建 `.url`。默认干跑，目标占用整条 SKIP。**不要手写搬移** |
+| `resolve_conflicts.ps1 -Batch <json> [-Apply]` | **冲突留新移旧**：把败方 vpk+jpg+url 移入 `backupDir` 并追加清单行。**默认干跑**；`keep` 不存在则整条拒绝（不搬空）。批次 = `[{target, keep, move:[...], reason}]` |
 | `vpklist.ps1 -Path @($f1,$f2) -OutName x -TopN 20` | 解 VPK 内部文件树（判断手工件替换了哪把枪/哪个角色）。**必须用 `&` 调用**，`powershell -File -Path $数组` 会把数组摊平 |
 | `vpkdump.ps1 -Path <vpk> -Match '^addoninfo\.txt$' -OutName x -MaxChars 3000` | 提取 VPK 内某个文件的内容 —— **识别未知 mod / 工坊页已失效（`result=9`）时唯一权威依据**。自动判 `entryOffset` 的两种 base；末尾附全部条目路径 |
 | `vpkwrite.mjs <out.vpk> <spec.json>` | 造一个合法 VPK（自测/造样本用）。spec = `[{"path": "...", "text": "..."}]` |

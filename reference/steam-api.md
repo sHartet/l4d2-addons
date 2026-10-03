@@ -11,7 +11,9 @@ body: itemcount=N&publishedfileids[0]=<id>&publishedfileids[1]=<id>...
 - **一次最多 100 个 ID**。逐个抓网页页会被限流（「您最近作出的请求太多了」）
 - 返回字段里这几个最有用：`title` / `time_created` / **`time_updated`** / `subscriptions` / `visibility` / `banned`
 - **`result = 9` 表示该条目已删除 / 不可见** → 跳过重命名并在报告里写明原因
-- `time_updated` 是「留新移旧」的判定依据（同一替换对象下多个 mod 时，保留较新的）
+- `time_updated` 只在**两件都来自 `workshop\`** 时用来给「留新移旧」分胜负
+  - ⚠️ **核心标准：未整理的（还在 `workshop\` 内的）永远按新算** ——
+    `addons` 里的常驻件再新也赢不了刚从 `workshop\` 出来那件，不需要比日期
 
 > 有些环境下 PowerShell 直连该接口会 TLS 失败。若如此，改用浏览器上下文里的 fetch（例如 agent 浏览器的 `fetch.browser`），
 > 注意它返回的是**字符串**，要自己 `JSON.parse`。

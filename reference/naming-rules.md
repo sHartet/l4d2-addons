@@ -275,6 +275,8 @@ if stem == want or stem.startswith(want + '-'):
    - ⚠️ 它的解析规则是「行首就是 `<前缀>-` 的行才算条目」→ **写中文说明时别让续行以 `<前缀>-` 开头**（本次误收过一行）
 2. `set_exempt.json` —— 多件套成员换新名（否则扫描器认不出多件套，会报假冲突）
 3. `mod备份\backup_manifest.md` —— 冲突移走的补行 + 记「kept instead」列旧名对照
+   - ⚠️ **留新移旧的核心标准**：**还在 `workshop\` 内的（未整理的）永远算新**；
+     工坊 `time_updated` 只在**两件都来自 `workshop\`** 时用来分胜负。执行用 `resolve_conflicts.ps1`，别手写搬移
 4. `scan_targets.ps1` 的 `$cats` —— 跟着前缀表更新（现 22 项，含旧名兼容）
 5. `刷新表格.bat nopause` —— 让 xlsx 跟上新文件名
 

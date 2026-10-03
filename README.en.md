@@ -22,8 +22,10 @@ This skill does four things:
    reads the real internal resource paths, instead of guessing from the filename.
 2. **Renames to `category-target-original title`** with 19 category prefixes
    (`survivor-`, `si-`, `primary-`, `melee-`, `material-`, `script-`, …).
-3. **Resolves real conflicts newest-wins** — for mods competing over the same target,
-   keep the one with the newer workshop `time_updated`, move the loser into `mod备份\`.
+3. **Resolves real conflicts newest-wins** — for mods competing over the same target, whatever is
+   **still un-consolidated (i.e. just came out of `workshop\`) always wins**; workshop `time_updated`
+   only breaks ties between two items that both came from `workshop\`. The loser moves into `mod备份\`
+   and is recorded in the manifest.
 4. **Builds a reference workbook** (16 sheets) marking every replaceable game object
    as *replaced / not replaced / only shipped incidentally by a map pack*, naming the
    mod responsible.

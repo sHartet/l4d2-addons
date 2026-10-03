@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""l4d2-addons 全链路自测 —— 在一个临时目录里模拟「全新用户 + 空库」，跑完 10 个阶段。
+"""l4d2-addons 全链路自测 —— 在一个临时目录里模拟「全新用户 + 空库」，跑完 11 个阶段。
 
     python self_test.py [--keep]
 
@@ -15,6 +15,7 @@
   S5 校验搬迁结果（三件同步 / 手工件不建 .url / workshop 清空但保留目录）
   S6 再刷新（新 mod 进清单）
   S7 命名推演幂等（应 0 条需改名）
+  S7b 冲突留新移旧（resolve_conflicts：负向拒绝搬空 + 正向搬移 + 清单记账）
   S8 冲突扫描 + 校验脚本 + .ps1 ASCII 护栏
 """
 import argparse, json, os, re, shutil, subprocess, sys, tempfile
@@ -196,6 +197,45 @@ def main():
         need(m and m.group(1) == '0', '幂等性被破坏：还要改 %s 条' % (m.group(1) if m else '?'))
         return '需改名 0（幂等）'
 
+    def s7b():
+        # 冲突留新移旧：造一个「常驻旧件」与已入库的 AK-47 抢同一替换对象
+        old = '主武器-AK-47 突击步枪-旧版AK47（自测冲突）'
+        keep = '主武器-AK-47 突击步枪-' + A[1]
+        sp = os.path.join(root, 'spec_old.json')
+        with open(sp, 'w', encoding='utf-8') as f:
+            json.dump([{'path': 'models/w_models/weapons/w_rifle_ak47.mdl', 'text': 'IDST OLD-AK47'}],
+                      f, ensure_ascii=False)
+        r = sh([node, VPKWRITE, os.path.join(AD, old + '.vpk'), sp])
+        need(r.returncode == 0, '造常驻旧件失败: %s' % r.stderr[-200:])
+        rc = os.path.join(WD, 'resolve_conflicts.ps1')
+        need(os.path.exists(rc), 'resolve_conflicts.ps1 没铺下来')
+        ps = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', rc, '-Batch']
+        bad = os.path.join(WD, 'conflict_bad.json')
+        with open(bad, 'w', encoding='utf-8') as f:
+            json.dump([{'target': 'AK-47 突击步枪', 'keep': 'no-such-mod',
+                        'move': [old], 'reason': 'selftest safety'}], f, ensure_ascii=False)
+        # 负向（关键安全不变式）：keep 不存在 -> 整条拒绝，绝不把替换对象搬空
+        r = sh(ps + [bad, '-Apply'], cwd=WORK)
+        need('files=0' in r.stdout and 'KEEP-MISSING' in r.stdout,
+             '负向安全测试没拦住: %s' % r.stdout.strip()[-200:])
+        need(os.path.exists(os.path.join(AD, old + '.vpk')), '负向测试居然把文件搬走了')
+        # 正向：工坊来的那件胜出 -> 旧件进 mod备份 + 清单加行
+        good = os.path.join(WD, 'conflict_good.json')
+        with open(good, 'w', encoding='utf-8') as f:
+            json.dump([{'target': 'AK-47 突击步枪', 'keep': keep, 'move': [old],
+                        'reason': 'selftest: workshop item always wins'}], f, ensure_ascii=False)
+        dry = sh(ps + [good], cwd=WORK)
+        need('DRY RUN' in dry.stdout and 'files=1' in dry.stdout, '干跑异常: %s' % dry.stdout.strip()[-200:])
+        ap = sh(ps + [good, '-Apply'], cwd=WORK)
+        need('APPLY' in ap.stdout and 'files=1' in ap.stdout, '执行异常: %s' % ap.stdout.strip()[-200:])
+        bk = os.path.join(AD, 'mod备份')
+        need(os.path.exists(os.path.join(bk, old + '.vpk')), '旧件没进 mod备份')
+        need(not os.path.exists(os.path.join(AD, old + '.vpk')), '旧件还在 addons')
+        need(os.path.exists(os.path.join(AD, keep + '.vpk')), '胜方不见了（不该动它）')
+        mf = os.path.join(bk, 'backup_manifest.md')
+        need(os.path.exists(mf) and old in open(mf, encoding='utf-8').read(), '清单没记这行')
+        return '负向拦截OK / 干跑files=1 / 旧件进 mod备份 + 清单加行 / 胜方未动'
+
     def s8():
         out = []
         r = sh(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass',
@@ -220,6 +260,7 @@ def main():
                    ('S3 刷新表格（空库也能跑）', s3), ('S3b 扫 workshop 暂存件（命名证据）', s3b),
                    ('S4 搬迁（consolidate5 干跑+执行）', s4), ('S5 校验搬迁结果', s5),
                    ('S6 再刷新（新 mod 进清单）', s6), ('S7 命名推演幂等', s7),
+                   ('S7b 冲突留新移旧（resolve_conflicts）', s7b),
                    ('S8 冲突扫描 + 校验 + ASCII 护栏', s8)):
         stage(nm, fn)
 
