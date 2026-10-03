@@ -265,7 +265,7 @@ bootstrap 会自动做完：写 `config.json` → 把脚本铺进 `<workDir>\_wo
 
 ## 5. 硬约束（踩过的坑，务必守住）
 
-1. **一个标签 ↔ 一行表格**。标签被多行共用 → 那几行会同时显示同一份 mod 列表。`enrich_ref_xlsx.py` 启动即自检
+1. **一个标签 ↔ 一行表格**（标签可由 `<workDir>\<scriptsDir>\label_override.json` 人工补，用于「名字已改身份、但内部路径看不出」的 mod；补的标签必须是已有表格行，否则 `enrich_ref_xlsx.py` 会 WARN）。标签被多行共用 → 那几行会同时显示同一份 mod 列表。`enrich_ref_xlsx.py` 启动即自检
 2. **物件域规则必须锚定 `^(models|materials)/`**。
    - 只锚 `^models/` → 误伤「只改贴图」的物件 mod（实测梯子行从「已替换」退化成「仅附带覆盖」）
    - 完全不锚 → 误吞同名 sound 目录（实测 `sound/weapons/50cal/` 抢走 `.50 重机枪`）

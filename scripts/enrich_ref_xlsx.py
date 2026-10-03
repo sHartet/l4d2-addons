@@ -53,6 +53,43 @@ def safe_save(workbook, path, tries=3, wait=1.5):
 mods = json.load(open(os.path.join(WORK, "addons_scan.json"), encoding="utf-8"))
 by_target = json.load(open(os.path.join(WORK, "addons_by_target.json"), encoding="utf-8"))
 
+# ---------------------------------------------------------------- 人工标签覆盖
+# 有些 mod 的「身份」由用户裁定（改名成 手电筒- / 管理员插件- 之类），但内部路径里没有对应特征
+# → 路径推导的标签认不出它，表格会把该行显示成「未替换」，与名字自相矛盾。用户可手动补标签：
+#   <WORK>/label_override.json
+#   [ { "mod": "<addons_scan.json 里的 file>", "add_labels": ["手电筒"], "reason": "..." } ]
+# 安全：① 已有该标签则跳过（幂等）② 标签不在任何表格行里会 WARN（不造孤立标签）
+#      ③ 只并入派生数据并回写，让 verify_overlaps / plan_v4 / 表格看到同一份
+OVERRIDE = os.path.join(WORK, "label_override.json")
+OV_APPLIED = 0
+OV_MISSING = []
+if os.path.exists(OVERRIDE):
+    _ov = json.load(open(OVERRIDE, encoding="utf-8"))
+    _byfile = {m.get("file"): m for m in mods}
+    for _it in _ov:
+        _f = (_it.get("mod") or "").strip()
+        _m = _byfile.get(_f) or _byfile.get(_f + ".vpk")
+        if not _m:
+            OV_MISSING.append(_f)
+            continue
+        for _lab in (_it.get("add_labels") or []):
+            if (_m.get("targets") or {}).get(_lab):
+                continue
+            _m.setdefault("targets", {})[_lab] = 1
+            _lst = by_target.setdefault(_lab, [])
+            if _m["file"] not in _lst:
+                _lst.append(_m["file"])
+            OV_APPLIED += 1
+    for _f in OV_MISSING:
+        print("[WARN] label_override: 扫描数据里找不到 mod「%s」（文件名写对了吗？）" % _f)
+    if OV_APPLIED:
+        json.dump(mods, open(os.path.join(WORK, "addons_scan.json"), "w", encoding="utf-8"),
+                  ensure_ascii=False, indent=1)
+        json.dump(by_target, open(os.path.join(WORK, "addons_by_target.json"), "w", encoding="utf-8"),
+                  ensure_ascii=False, indent=1)
+        print("[OK] 人工标签覆盖: 并入 %d 条标签（已回写 addons_scan / addons_by_target，"
+              "保证各工具与表格一致）" % OV_APPLIED)
+
 OK_FILL = PatternFill("solid", fgColor="D6F0DC")
 NO_FILL = PatternFill("solid", fgColor="F7E2E2")
 NA_FILL = PatternFill("solid", fgColor="EEEEEE")
@@ -299,6 +336,13 @@ else:
 # 落盘标签映射，便于事后核对与排错
 json.dump(label_rows, open(os.path.join(WORK, "label_map.json"), "w", encoding="utf-8"),
           ensure_ascii=False, indent=1, sort_keys=True)
+# label_override 若写了表格里不存在的标签，它不会显示在任何行 —— 明确报警，别静默失效
+if os.path.exists(OVERRIDE):
+    _ovl = [l for _it in json.load(open(OVERRIDE, encoding="utf-8"))
+            for l in (_it.get("add_labels") or [])]
+    _badl = sorted({l for l in _ovl if l not in label_rows})
+    if _badl:
+        print("[WARN] label_override 用了表格里不存在的标签（不会出现在任何行）：%s" % "、".join(_badl))
 
 for sname, (keycol, mapping) in SHEET_MAP.items():
     ws = wb[sname]

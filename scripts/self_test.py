@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""l4d2-addons 全链路自测 —— 在一个临时目录里模拟「全新用户 + 空库」，跑完 11 个阶段。
+"""l4d2-addons 全链路自测 —— 在一个临时目录里模拟「全新用户 + 空库」，跑完 12 个阶段。
 
     python self_test.py [--keep]
 
@@ -14,6 +14,7 @@
   S4 搬迁：consolidate5 干跑 -> 执行
   S5 校验搬迁结果（三件同步 / 手工件不建 .url / workshop 清空但保留目录）
   S6 再刷新（新 mod 进清单）
+  S6b 人工标签覆盖（label_override.json 并入 + 回写 + 幂等）
   S7 命名推演幂等（应 0 条需改名）
   S7b 冲突留新移旧（resolve_conflicts：负向拒绝搬空 + 正向搬移 + 清单记账）
   S8 冲突扫描 + 校验脚本 + .ps1 ASCII 护栏
@@ -191,6 +192,31 @@ def main():
         need(len(rj(os.path.join(WD, 'addons_scan.json'))) == 3, '刷新后应扫到 3 个')
         return '3 个 mod 进入清单'
 
+    def s6b():
+        # 人工标签覆盖：给一个 mod 手动补表格行标签，应计入并回写两份派生数据；再跑一次应幂等
+        ov = os.path.join(WD, 'label_override.json')
+        coach = '生还者-Coach-Lime replace Coach.vpk'
+        with open(ov, 'w', encoding='utf-8') as f:
+            json.dump([{'mod': coach, 'add_labels': ['手电筒'], 'reason': 'selftest'}], f, ensure_ascii=False)
+        r = bat()
+        need(r.returncode == 0 and '"unclassifiedPaths": 0' in r.stdout, '覆盖后刷新失败')
+        need('人工标签覆盖: 并入 1 条标签' in r.stdout, '覆盖未生效: %s' % r.stdout[-300:])
+        bt = rj(os.path.join(WD, 'addons_by_target.json'))
+        need(coach in bt.get('手电筒', []), 'by_target 没并入')
+        sc = {m['file']: m for m in rj(os.path.join(WD, 'addons_scan.json'))}
+        need('手电筒' in (sc[coach].get('targets') or {}), 'addons_scan 没并入')
+        # 刷新会重跑 scan（addons_scan.json 每次重生成），所以覆盖**每次都重新并入**；
+        # 正确的不变量是「计数不累加」，不是「第二次不再打印」。
+        r2 = bat()
+        need(r2.returncode == 0, '第二次刷新失败')
+        bt2 = rj(os.path.join(WD, 'addons_by_target.json'))
+        need(bt2.get('手电筒', []).count(coach) == 1, '重复应用导致 by_target 重复计数')
+        sc2 = {m['file']: m for m in rj(os.path.join(WD, 'addons_scan.json'))}
+        need((sc2[coach].get('targets') or {}).get('手电筒') == 1, '重复应用导致 targets 计数不幂等')
+        os.remove(ov)
+        bat()
+        return '并入 1 条 + 回写两文件 + 幂等 + 已清理'
+
     def s7():
         r = sh([PYEXE, os.path.join(WD, 'plan_v4.py')], cwd=WORK)
         m = re.search(r'需改名\s*(\d+)\s*个', r.stdout)
@@ -259,7 +285,9 @@ def main():
     for nm, fn in (('S1 bootstrap 生成工作区', s1), ('S2 造 3 个假 VPK 进 workshop', s2),
                    ('S3 刷新表格（空库也能跑）', s3), ('S3b 扫 workshop 暂存件（命名证据）', s3b),
                    ('S4 搬迁（consolidate5 干跑+执行）', s4), ('S5 校验搬迁结果', s5),
-                   ('S6 再刷新（新 mod 进清单）', s6), ('S7 命名推演幂等', s7),
+                   ('S6 再刷新（新 mod 进清单）', s6),
+                   ('S6b 人工标签覆盖（label_override）', s6b),
+                   ('S7 命名推演幂等', s7),
                    ('S7b 冲突留新移旧（resolve_conflicts）', s7b),
                    ('S8 冲突扫描 + 校验 + ASCII 护栏', s8)):
         stage(nm, fn)
