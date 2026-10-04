@@ -1,6 +1,6 @@
 # l4d2-addons
 
-把《求生之路2》(Left 4 Dead 2) 的创意工坊 mod 库整理成**可读、可查、不重复**的样子。
+自动化整理《求生之路2》(Left 4 Dead 2) 的创意工坊 mod 
 
 一个 **Agent Skill**：装进 DSH / Claude Code 之类的 agent 后，
 你跟它说「整理我的 L4D2 mod」，它会自己把整套工具链铺好，然后按规则干活。
