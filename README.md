@@ -70,6 +70,10 @@
    然后把本次结论压成**一条精简记忆**，下次开会话直接复用，**省掉重新探索的 token**。
 
 
+## 整理成果（部分）
+<img width="509" height="938" alt="image" src="https://github.com/user-attachments/assets/b240e068-7c03-45f9-adfb-fdc73992df6c" />
+<img width="2099" height="1750" alt="image" src="https://github.com/user-attachments/assets/5aa2b2f2-64a3-4202-894c-61ac7f83ba51" />
+
 ## 目录结构
 
 ```
