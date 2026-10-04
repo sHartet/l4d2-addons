@@ -123,6 +123,23 @@ except Exception:
     vals['labels'] = '?'
     fails.append(('labels', '读不到 label_map.json'))
 
+# 6b) 扫描数据是否过期 —— 磁盘上的 vpk 与 scan 记录必须一致（刷新被占用挡住时就会不一致）
+try:
+    disk = {f[:-4] for f in os.listdir(ADDONS) if f.lower().endswith('.vpk')}
+    # 排除 scan 里刻意记录的「目录内件」伪条目（如 cfhd\\pak01_dir），它们不是顶层 vpk
+    scanned = {m['file'][:-4] for m in scan if os.sep not in m['file'] and '/' not in m['file']}
+    missing = sorted(disk - scanned)      # 磁盘有、扫描没有 → 刚搬进来还没刷
+    extra = sorted(scanned - disk)        # 扫描有、磁盘没有 → 刚被移走/改名
+    if missing or extra:
+        vals['stale'] = 'YES(%d+%d)' % (len(missing), len(extra))
+        fails.append(('stale', 'addons_scan.json 已过期：磁盘多出 %s / 扫描残留 %s —— 先跑刷新表格.bat'
+                      % (missing[:3], extra[:3])))
+    else:
+        vals['stale'] = 'no'
+except Exception as e:
+    vals['stale'] = '?'
+    fails.append(('stale', '无法比对磁盘与扫描：%s' % e))
+
 # 7) 63 字节硬约束
 long_names = []
 try:
@@ -137,7 +154,7 @@ vals['name63'] = 'ok' if not long_names else 'OVER(%d)' % len(long_names)
 if long_names:
     fails.append(('name63', '、'.join(long_names[:3])))
 
-order = ['rename', 'conflicts', 'rules', 'fixes', 'overlaps', 'unclassified', 'name63', 'labels']
+order = ['stale', 'rename', 'conflicts', 'rules', 'fixes', 'overlaps', 'unclassified', 'name63', 'labels']
 summary = ' '.join('%s=%s' % (k, vals.get(k, '-')) for k in order if k in vals)
 if fails:
     print('FAIL %d 项  %s' % (len(fails), summary))
