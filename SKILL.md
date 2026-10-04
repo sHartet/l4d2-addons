@@ -246,7 +246,8 @@ L4D2 用定长名字缓冲，**主干超 63 字节的包根本不挂载**：不�
 | `scan_workshop.ps1` | **扫 `workshopDir` 暂存件**，用与扫库完全相同的分类规则 → `workshop_scan.json`。**新订阅件的命名证据靠它**（`scan_addons.mjs` 只扫 addons 顶层，看不到暂存件） |
 | `consolidate5.ps1 -Batch <json> [-Apply]` | **`workshop\` → `addons\`**：搬 vpk+jpg、按 `<分类>-<替换对象>-<原标题>` 改名、`id` 非空才建 `.url`。默认干跑，目标占用整条 SKIP。**不要手写搬移** |
 | `resolve_conflicts.ps1 -Batch <json> [-Apply]` | **冲突留新移旧**：把败方 vpk+jpg+url 移入 `backupDir` 并追加清单行。**默认干跑**；`keep` 不存在则整条拒绝（不搬空）。批次 = `[{target, keep, move:[...], reason}]` |
-| `vpklist.ps1 -Path @($f1,$f2) -OutName x -TopN 20` | 解 VPK 内部文件树（判断手工件替换了哪把枪/哪个角色）。**用 `powershell -NoProfile -ExecutionPolicy Bypass -File` 调用、一次一个路径**（进程内 `&` 会被策略拦；`-File` 传数组会摊平），`powershell -File -Path $数组` 会把数组摊平 |
+| ⭐ `batch_digest.mjs [--ids a,b] [--dir <目录>] [--names <json>]` | **一屏看全一批暂存件**：每件一行（体积/路径数/bsp·nav·mdl·nut·snd 计数/命中标签前 3/未归类数/抽样路径）+ 未归类明细；`--names` 还能体检候选名（**GBK 字节** + 占用）。**取代每轮临时写的探针** |
+| `vpklist.ps1 -Path <单个 vpk> -OutName x -TopN 20` | 解 VPK 内部文件树（判断手工件替换了哪把枪/哪个角色）。**用 `powershell -NoProfile -ExecutionPolicy Bypass -File` 调用、一次一个路径**（进程内 `&` 会被策略拦；`-File` 传数组会摊平），`powershell -File -Path $数组` 会把数组摊平 |
 | `vpkdump.ps1 -Path <vpk> -Match '^addoninfo\.txt$' -OutName x -MaxChars 3000` | 提取 VPK 内某个文件的内容 —— **识别未知 mod / 工坊页已失效（`result=9`）时唯一权威依据**。自动判 `entryOffset` 的两种 base；末尾附全部条目路径 |
 | `vpkwrite.mjs <out.vpk> <spec.json>` | 造一个合法 VPK（自测/造样本用）。spec = `[{"path": "...", "text": "..."}]` |
 
@@ -255,6 +256,7 @@ L4D2 用定长名字缓冲，**主干超 63 字节的包根本不挂载**：不�
 | 脚本 | 作用 |
 |---|---|
 | `scan_targets.ps1` | 按「前缀 + 第 2 段」分组的**文件名**冲突扫描（辅助，见下方注意） |
+| ⭐ `verify_all.py [--quick]` | **一条命令跑完全部验收**，成功只打印一行：`ALL OK rename=0 conflicts=0 rules=75/75 fixes=0 overlaps=0 unclassified=0 name63=ok labels=223`；任何一项不过就打印 `FAIL` + 该项关键输出。**取代过去 6-8 次收尾调用** |
 | `verify_rules.mjs` | 分类规则断言（改规则后必跑） |
 | `verify_fixes.py` | 读回 xlsx 逐条核对已知缺陷类别 |
 | `verify_overlaps.py` | 列出被 ≥2 个 mod 覆盖的标签，分「多件套 / 分类级 / 多目标聚合 / 仅地图附带 / ⚠真冲突」 |
@@ -267,6 +269,19 @@ L4D2 用定长名字缓冲，**主干超 63 字节的包根本不挂载**：不�
 `scan_targets.ps1` 只作辅助 —— 落到资源类型前缀的 mod 中段为空，文件名扫描器判不了它们。
 
 ---
+
+## 4.5 省 token 的做法（2026-10-04 立，用户明确要求过）
+
+每轮真正烧掉上下文的不是干活本身，而是**被反复注入的长文本**和**一次性的探测命令**。三条纪律：
+
+1. **长文档只留承重内容**：工作区的 `AGENTS.md` **每轮都被注入**（曾到 50 KB ≈ 15.6k tokens/轮）。
+   历史叙事、过程记录一律挪进 `_work\执行记录.md`；文档里只留「怎么做 + 坑 + 例外 + 指针」。
+   ⚠️ **别把历史再粘回去** —— 要查历史去那个文件。
+2. **别写一次性探针**：想看一批 mod 是什么 → `batch_digest.mjs` 一条命令；
+   收尾验收 → `verify_all.py` 一行。每轮临时写 probe 是过去最大的重复开销（一次 write + 一次 run + 一段输出 ×4-6）。
+3. **报告只给结论**：清单化表格（原文件名 / 新文件名 / 快捷方式 / 状态）+ 验收数字，
+   **不要贴工具的原始输出**（那是给模型看的，不是给人的）。
+4. 干活按固定的 10 步走，**不要重新推导规则**（规则与判据都在 `reference\` 里，读它比重新试快得多）。
 
 ## 5. 硬约束（踩过的坑，务必守住）
 
