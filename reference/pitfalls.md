@@ -26,6 +26,9 @@
 9. **`-like` 的通配符把 `[ ]` 当字符类**：`$_.Name -like "*…-[Survivors] …*"` **匹配不到**。
    含方括号的文件名要用 `Test-Path -LiteralPath` 或 `.Contains()`
 10. **`powershell -File script.ps1 -Path $array` 会把数组摊平成多个位置参数** → 报 `PositionalParameterNotFound`。
+    但**进程内 `& script.ps1` 在部分环境会被执行策略直接拦掉**（`AuthorizationManager 检查失败` / `UnauthorizedAccess`，
+    即使 `Get-ExecutionPolicy -List` 显示 `CurrentUser=Unrestricted`、文件也无 Zone.Identifier）。
+    → 结论：**用 `powershell -NoProfile -ExecutionPolicy Bypass -File <脚本>` 调用，要多个路径就一次调一个**。
     传数组必须在当前会话用 `& '.\script.ps1' -Path $array`
 11. **`param()` 必须是 `.ps1` 的第一条语句** —— 给脚本注入公共代码只能插在 `param()` 之后
 12. **`param()` 里的默认值必须以逗号结尾**（除最后一项）。漏了逗号会报

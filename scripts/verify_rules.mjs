@@ -122,6 +122,9 @@ const CASES = [
   ['vscripts/director_base_addon.nut', '脚本·VScript'],          // 顶层 vscripts/（正常在 scripts/ 下）
   ['cubemap_screenshots/dc3m6_stationup.tga', '打包元文件（cubemap 构建产物）'],
   ['cubemap_screenshots/dc3m5_plantup.pfm', '打包元文件（cubemap 构建产物）'],
+  // 授权文件（含名字被写坏成「点+空格」的）
+  [' /botai_license. ', '打包元文件'],
+  ['license.txt', '打包元文件'],
   // 专项优先于资源类型：手电筒类 VScript 归 手电筒-，不是 脚本-
   ['scripts/vscripts/flashlight.nut', '手电筒'],
   ['vscripts/flashlight_fix.nut', '手电筒'],

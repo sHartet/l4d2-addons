@@ -328,6 +328,9 @@ const RULES = [
   [/^[^\/]*\.(txt|md)$/i, '打包元文件'],            // 根目录下的说明文本（含 [ksep]readme.txt 这类作者前缀）
   [/^[^\/]*\.(jpg|jpeg|png|bmp|gif)$/i, '打包元文件'],  // 根目录下的预览图
   [/\.(xlsx|xls|docx|pdf)$/i, '打包元文件'],
+  // 授权文件：实测 Advanced Bot AI 放的是 `botai_license. `（点+空格，不是 .txt），
+  // 上面的 .txt/.md 规则认不出 → 会掉「未归类」。license 永远不是游戏资源。
+  [/licen[cs]e/i, '打包元文件'],
   [/\.vpk$/i, '打包元文件（嵌套 VPK）'],
   // 地图编译时引擎写出的立方体贴图构建产物（.tga 截图 / .pfm 烘焙数据），在 VPK 根目录。
   // 实测来源：The Arrival 带了 42 条，全库其它 mod 都没有。不是游戏资源，但也不该算「未归类」。

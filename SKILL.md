@@ -246,7 +246,7 @@ L4D2 用定长名字缓冲，**主干超 63 字节的包根本不挂载**：不�
 | `scan_workshop.ps1` | **扫 `workshopDir` 暂存件**，用与扫库完全相同的分类规则 → `workshop_scan.json`。**新订阅件的命名证据靠它**（`scan_addons.mjs` 只扫 addons 顶层，看不到暂存件） |
 | `consolidate5.ps1 -Batch <json> [-Apply]` | **`workshop\` → `addons\`**：搬 vpk+jpg、按 `<分类>-<替换对象>-<原标题>` 改名、`id` 非空才建 `.url`。默认干跑，目标占用整条 SKIP。**不要手写搬移** |
 | `resolve_conflicts.ps1 -Batch <json> [-Apply]` | **冲突留新移旧**：把败方 vpk+jpg+url 移入 `backupDir` 并追加清单行。**默认干跑**；`keep` 不存在则整条拒绝（不搬空）。批次 = `[{target, keep, move:[...], reason}]` |
-| `vpklist.ps1 -Path @($f1,$f2) -OutName x -TopN 20` | 解 VPK 内部文件树（判断手工件替换了哪把枪/哪个角色）。**必须用 `&` 调用**，`powershell -File -Path $数组` 会把数组摊平 |
+| `vpklist.ps1 -Path @($f1,$f2) -OutName x -TopN 20` | 解 VPK 内部文件树（判断手工件替换了哪把枪/哪个角色）。**用 `powershell -NoProfile -ExecutionPolicy Bypass -File` 调用、一次一个路径**（进程内 `&` 会被策略拦；`-File` 传数组会摊平），`powershell -File -Path $数组` 会把数组摊平 |
 | `vpkdump.ps1 -Path <vpk> -Match '^addoninfo\.txt$' -OutName x -MaxChars 3000` | 提取 VPK 内某个文件的内容 —— **识别未知 mod / 工坊页已失效（`result=9`）时唯一权威依据**。自动判 `entryOffset` 的两种 base；末尾附全部条目路径 |
 | `vpkwrite.mjs <out.vpk> <spec.json>` | 造一个合法 VPK（自测/造样本用）。spec = `[{"path": "...", "text": "..."}]` |
 
