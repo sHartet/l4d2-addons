@@ -2,8 +2,8 @@
 
 自动化整理《求生之路2》(Left 4 Dead 2) 的创意工坊 mod 
 
-一个 **Agent Skill**：装进 DSH / Claude Code 之类的 agent 后，
-你跟它说「整理我的 L4D2 mod」，它会自己把整套工具链铺好，然后按规则干活。
+ **Skill**：装进 DSH / Claude Code 之类的 agent 后，
+跟它说「整理我的 L4D2 mod」，它会自己把整套工具链铺好，然后按规则干活。
 
 [English README](README.en.md) · [贡献指南](CONTRIBUTING.md)
 
