@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""l4d2-addons 全链路自测 —— 在一个临时目录里模拟「全新用户 + 空库」，跑完 12 个阶段。
+"""l4d2-addons 全链路自测 —— 在一个临时目录里模拟「全新用户 + 空库」，跑完 13 个阶段。
 
     python self_test.py [--keep]
 
@@ -299,6 +299,33 @@ def main():
         need(m and m.group(1) == '0', '截断后推演仍要求改名 %s 条' % (m.group(1) if m else '?'))
         return '原标题 %d 字符 -> 主干 %dB（前缀保留 + 推演幂等）' % (len(long_title), nb)
 
+    def s9():
+        # 盲点扫描（overlap_scan.mjs）的 CRC 判据回归：
+        #   同路径 + 内容不同 → 真抢位必须 +1；同路径 + 内容相同 → 交集仍在但应折叠
+        def cnt():
+            r = sh([node, os.path.join(WD, 'overlap_scan.mjs'), '--top', '1'], cwd=WORK)
+            need(r.returncode == 0, 'overlap_scan 退出码 %s: %s' % (r.returncode, (r.stdout + r.stderr)[-300:]))
+            m = re.search(r'真抢位=(\d+)', r.stdout)
+            need(m, '没解析到「真抢位=」: %s' % r.stdout[-200:])
+            return int(m.group(1))
+
+        def mk(name, text):
+            sp = os.path.join(root, 'spec_%s.json' % name)
+            with open(sp, 'w', encoding='utf-8') as f:
+                json.dump([{'path': 'materials/blindspot/shared.vmt', 'text': text}], f)
+            r = sh([node, VPKWRITE, os.path.join(AD, name + '.vpk'), sp])
+            need(r.returncode == 0, 'vpkwrite 失败: %s' % r.stderr[-200:])
+
+        base = cnt()                       # 基准：不受 S2/S7b 留下的件影响
+        mk('测试-盲点扫描甲', 'CONTENT-ALPHA')
+        mk('测试-盲点扫描乙', 'CONTENT-BETA')
+        got = cnt()
+        need(got == base + 1, '内容不同却没报出来：基准 %d，实际 %d（应 %d）' % (base, got, base + 1))
+        mk('测试-盲点扫描乙', 'CONTENT-ALPHA')      # 改成与甲完全一致
+        got2 = cnt()
+        need(got2 == base, '内容相同却仍报冲突：基准 %d，实际 %d' % (base, got2))
+        return '内容不同必报 / 内容相同必折叠（CRC 判据，基准 %d 对）' % base
+
     def s8():
         out = []
         r = sh(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass',
@@ -327,7 +354,8 @@ def main():
                    ('S7 命名推演幂等', s7),
                    ('S7b 冲突留新移旧（resolve_conflicts）', s7b),
                    ('S4b 超长名按 63 字节截断', s4b),
-                   ('S8 冲突扫描 + 校验 + ASCII 护栏', s8)):
+                   ('S8 冲突扫描 + 校验 + ASCII 护栏', s8),
+                   ('S9 盲点扫描（overlap_scan，CRC 判据）', s9)):
         stage(nm, fn)
 
     print('=' * 92)

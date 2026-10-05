@@ -140,6 +140,13 @@ except Exception as e:
     vals['stale'] = '?'
     fails.append(('stale', '无法比对磁盘与扫描：%s' % e))
 
+# 6c) 盲点扫描（信息性）：路径有交集且内容真的不同 —— 需人工裁决，故不判失败，只报数字
+t = run([NODE, os.path.join(WORK, 'overlap_scan.mjs'), '--top', '1'])
+m = re.search(r'真抢位=(\d+)', t)
+vals['blind'] = m.group(1) if m else '?'
+if vals['blind'] not in ('0', '?'):
+    print('  [blind] %s 对真抢位（路径相同、内容不同）—— 明细见 _work\\blind_overlaps.md' % vals['blind'])
+
 # 7) 63 字节硬约束
 long_names = []
 try:
@@ -154,7 +161,7 @@ vals['name63'] = 'ok' if not long_names else 'OVER(%d)' % len(long_names)
 if long_names:
     fails.append(('name63', '、'.join(long_names[:3])))
 
-order = ['stale', 'rename', 'conflicts', 'rules', 'fixes', 'overlaps', 'unclassified', 'name63', 'labels']
+order = ['stale', 'rename', 'conflicts', 'rules', 'fixes', 'overlaps', 'unclassified', 'name63', 'blind', 'labels']
 summary = ' '.join('%s=%s' % (k, vals.get(k, '-')) for k in order if k in vals)
 if fails:
     print('FAIL %d 项  %s' % (len(fails), summary))

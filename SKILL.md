@@ -255,6 +255,7 @@ L4D2 用定长名字缓冲，**主干超 63 字节的包根本不挂载**：不�
 
 | 脚本 | 作用 |
 |---|---|
+| ⭐ `overlap_scan.mjs [--strict] [--top N] [--min N]` | **盲点扫描（文件级）**：解析全库 VPK 目录树取路径+CRC，找出「装了同一文件且内容不同」的 mod 对 —— 这类冲突**第二段名可能不同，扫描器与 `verify_overlaps` 都看不出**。完整结果写 `_work\blind_overlaps.md`；内容相同的交集（原版素材/共用贴图/VScript 公共库）自动折叠。回归用例：自测 S9 |
 | `scan_targets.ps1` | 按「前缀 + 第 2 段」分组的**文件名**冲突扫描（辅助，见下方注意） |
 | ⭐ `verify_all.py [--quick]` | **一条命令跑完全部验收**，成功只打印一行：`ALL OK rename=0 conflicts=0 rules=75/75 fixes=0 overlaps=0 unclassified=0 name63=ok labels=223`；任何一项不过就打印 `FAIL` + 该项关键输出。**取代过去 6-8 次收尾调用** |
 | `verify_rules.mjs` | 分类规则断言（改规则后必跑） |
