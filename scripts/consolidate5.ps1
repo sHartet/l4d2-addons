@@ -30,7 +30,7 @@ function MC([int[]]$cp) { -join ($cp | ForEach-Object { [char]$_ }) }
 $illegal = @{
   '\' = MC @(0xFF3C); '/' = MC @(0xFF0F); ':' = MC @(0xFF1A); '*' = MC @(0xFF0A)
   '?' = MC @(0xFF1F); '"' = MC @(0xFF02); '<' = MC @(0xFF1C); '>' = MC @(0xFF1E)
-  '|' = MC @(0xFF20)
+  '|' = MC @(0xFF5C)
 }
 function SanitizeName([string]$s) {
   foreach ($k in $illegal.Keys) { $s = $s.Replace($k, $illegal[$k]) }

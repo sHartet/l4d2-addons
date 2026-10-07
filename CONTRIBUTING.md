@@ -202,7 +202,7 @@ planner afterwards still reports `需改名 0`.
 # So run the deployed copies, or point L4D2_HOME at a configured working directory first.
 $env:L4D2_HOME = "<workDir>"            # or just cd into <workDir>\_work\
 
-node   <workDir>\_work\verify_rules.mjs        # all assertions pass (currently 67 + 6)
+node   <workDir>\_work\verify_rules.mjs        # all assertions pass (currently 69 + 6)
 python <workDir>\_work\verify_fixes.py         # 不合格条目数 == 0
 python <workDir>\_work\verify_overlaps.py      # no false conflicts
 python scripts\self_test.py                     # end-to-end still green (uses a temp dir,

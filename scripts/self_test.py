@@ -326,6 +326,38 @@ def main():
         need(got2 == base, '内容相同却仍报冲突：基准 %d，实际 %d' % (base, got2))
         return '内容不同必报 / 内容相同必折叠（CRC 判据，基准 %d 对）' % base
 
+    def s10():
+        # 全角化映射回归：9 个 Windows 非法字符都要换成对应的全角形，尤其是 '|' -> ｜(U+FF5C)。
+        # 2026-10-05 实测 bug：'|' 被映成 ＠(U+FF20)，名字会带着一个语义错误的字符进库。
+        title = 'a\\b/c:d*e?f"g<h>i|j'
+        want = 'a＼b／c：d＊e？f＂g＜h＞i｜j'
+        sp = os.path.join(root, 'spec_illegal.json')
+        with open(sp, 'w', encoding='utf-8') as f:
+            json.dump([{'path': 'models/weapons/melee/w_crowbar.mdl', 'text': 'IDST CROWBAR-ILLEGAL'}],
+                      f, ensure_ascii=False)
+        src = '9999000003.vpk'
+        r = sh([node, VPKWRITE, os.path.join(WS, src), sp])
+        need(r.returncode == 0, 'vpkwrite 失败: %s' % r.stderr[-300:])
+        bp = os.path.join(WD, 'ws_batch_illegal.json')
+        with open(bp, 'w', encoding='utf-8') as f:
+            json.dump([{'id': '', 'src': src, 'cat': '其它', 'target': '全角测试', 'title': title}],
+                      f, ensure_ascii=False, indent=1)
+        before = set(os.listdir(AD))
+        con = os.path.join(WD, 'consolidate5.ps1')
+        ps = ['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', con, '-Batch', bp]
+        dry = sh(ps, cwd=WORK)
+        need('apply=False ok=1 skip=0' in dry.stdout, '干跑异常: %s' % dry.stdout.strip()[-200:])
+        ap = sh(ps + ['-Apply'], cwd=WORK)
+        need('apply=True ok=1 skip=0' in ap.stdout, '执行异常: %s' % ap.stdout.strip()[-200:])
+        vpks = [f for f in sorted(set(os.listdir(AD)) - before) if f.endswith('.vpk')]
+        need(len(vpks) == 1, '新入库文件异常: %s' % vpks)
+        stem = vpks[0][:-4]
+        need(stem.startswith('其它-全角测试-'), '前缀被切坏: %s' % stem)
+        got = stem[len('其它-全角测试-'):]
+        need(got == want, '全角化结果不对：%r（应为 %r）' % (got, want))
+        need('＠' not in stem, "'|' 仍被映成 ＠")
+        return '9 个非法字符全角化正确（| -> ｜）'
+
     def s8():
         out = []
         r = sh(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass',
@@ -355,7 +387,8 @@ def main():
                    ('S7b 冲突留新移旧（resolve_conflicts）', s7b),
                    ('S4b 超长名按 63 字节截断', s4b),
                    ('S8 冲突扫描 + 校验 + ASCII 护栏', s8),
-                   ('S9 盲点扫描（overlap_scan，CRC 判据）', s9)):
+                   ('S9 盲点扫描（overlap_scan，CRC 判据）', s9),
+                   ('S10 非法字符全角化（| -> ｜）', s10)):
         stage(nm, fn)
 
     print('=' * 92)
