@@ -66,3 +66,13 @@
     `|` 是 **U+FF5C `｜`**，不是 U+FF20 `＠`。2026-10-07 实测 `consolidate5.ps1` 的 `$illegal` 把 `|` 写成
     `0xFF20`：成品名里多出一个语义完全无关的字符，而**没人会去逐字符核对一个长中文名**（靠肉眼看是查不出来的）。
     对策：表格只写一次、由 `MC @()` 码点构造；**回归用 `self_test.py` 的 S10**（一次覆盖九个字符 + 断言不含 `＠`）。
+
+## 自测/验证脚本本身
+
+26. ⚠️ **跑 `self_test.py` 要用 `config.json` 里的 `pythonPath`，不要用 PATH 上的 `python`**：
+    2026-10-07 实测用 PATH 里的 `pythoncore-3.14`（无 `openpyxl`）跑出 **7/14**，看起来像重大回归，
+    实际是 S1/S3/S6/S6b/S4b/S7/S8 一起因缺依赖假失败。自测内部会调 `verify_fixes.py`、`plan_v4.py` 和刷新链路
+    （都吃 `sys.executable`），**解释器选对，全部阶段才成立**。
+    同理：`verify_rules.mjs` / `verify_fixes.py` 这类「读 `config.json` 找 workDir」的脚本要跑
+    **`<workDir>\_work\` 里的部署副本**（直接跑 clone 里的 `scripts\` 会因为找不到 `_work\` 而崩），
+    或先 `$env:L4D2_HOME=<workDir>`。
