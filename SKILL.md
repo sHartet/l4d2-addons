@@ -5,309 +5,188 @@ description: Left 4 Dead 2（求生之路2）mod 库整理工作流：把创意�
 
 # L4D2 mod 库整理
 
-把「一个 mod 文件 → 一个可读的名字 + 一个工坊快捷方式」这件事做成**可重复、可复核、幂等**的流程。
+把「一个 mod 文件 → 一个可读的名字 + 一个工坊快捷方式」做成**可重复、可复核、幂等**的流程。
 
-**核心思路**：不靠文件名猜，而是**解出每个 VPK 的真实资源路径**，用它反推这个 mod 到底替换了什么；
+**核心思路**：不靠文件名猜，而是**解出每个 VPK 的真实资源路径**，用它反推这个 mod 替换了什么；
 再按 `S1 地图 → S2 物件域 → S3 物件域·贴图类 → S4 资源类型 → S5 低置信保留原前缀` 五步定分类前缀。
 低置信时**保留人工前缀并列入待复核，绝不静默猜**。
+
+> **📖 读文档的顺序**（省 token 的关键）：本文件 = **流程骨架**；判据细节在 `reference\`，**用到哪份读哪份**，
+> 不要一次性全读。`reference\toolbox.md` 是工具箱全表（按需查）。
 
 ---
 
 ## 0. 首次调用必做：定位 / 生成工作目录
 
-工作目录（下称 `workDir`）里放：`config.json`、生成的脚本 `<workDir>\_work\`、`求生之路2_可MOD替换物品总表.xlsx`、`刷新表格.bat`。
-
-**默认 `workDir` = 用户自己的 AI 工作目录（当前会话 cwd）。**
-
-⚠️ **无论记忆/上下文里是否已经有「这台机器配置过」的信息，每次调用都必须真的跑一次这条命令。**
-记忆只能当提示，不能替代这次实际探测 —— 配置可能已过期（换了硬盘、重装 Steam、改了目录）。
-
 ```powershell
 python <skill>\scripts\bootstrap.py --show
 ```
 
-它返回三样东西，据此判断：
-
-| 情况 | 怎么做 |
-|---|---|
-| `known.cwdConfig` 有值 | 当前目录就是 workDir → 直接用 |
-| `known.pointerConfig` 有值 **且** 指针指向的 workDir **等于**当前会话 cwd | 直接用，不用问 |
-| `known.pointerConfig` 有值 **但** 与当前会话 cwd **不同** | ⚠️ **必须问一句**，见下 |
-| 两者都空 | **首次调用**：按 `needAsk` 问（应为 `workDir` / `addonsDir` / `workshopDir` 三项），然后跑 bootstrap |
-
-**以 `--show` 的返回字段为准，不要自己猜：**
+⚠️ **无论记忆里是否已有「这台机器配置过」的信息，每次调用都必须真的跑一次** —— 配置可能已过期
+（换硬盘、重装 Steam、改目录）。**以 `--show` 的返回字段为准，不要自己猜**：
 
 | 字段 | 含义 |
 |---|---|
 | `needAsk` | **要问用户的清单，以它为准。** 全新安装 = `workDir` + `addonsDir` + `workshopDir`；已配置过 = 空数组 |
-| `workDir` | **照当前参数跑下去、产物会落在哪** —— 解析规则与 install 完全一致（`--workdir` > 当前目录） |
-| `workDirSource` | 上一行是怎么定出来的（`explicit (--workdir)` / `current directory (default)`） |
-| `pointerWorkDir` | 本机**已配置过**的工作目录（没配置则是空） |
-| `pointerDiffersFromCwd` | 上一行那个目录**是否与当前会话目录不同**；`true` → 按上表那行「必须问一句」 |
+| `workDir` | **照当前参数跑下去、产物会落在哪** |
+| `pointerWorkDir` | 本机**已配置过**的工作目录 |
+| `pointerDiffersFromCwd` | 上面那个目录**是否与当前会话目录不同**；`true` → **必须问一句** |
 
-> ⚠️ 别把 `workDir` 和 `pointerWorkDir` 混为一谈：前者是「**这次**会写哪」，后者是「**以前**配过哪」。
-> 只有当 `pointerDiffersFromCwd` 为 `true`、且用户选了沿用旧目录时，才把 `--workdir "<pointerWorkDir>"` 显式传给 bootstrap。
->
-> ⚠️ **全新安装时 `workDir` 也在询问清单里**：agent 自己的 cwd 常常不是用户选的地方，
-> 不打招呼就往那里丢 `config.json` / `xlsx` / `_work\` 会让人意外（已有用户就此反馈过）。
+**判定**：`known.cwdConfig` 有值 → 直接用；`pointerConfig` 有值且 `pointerDiffersFromCwd=false` → 直接用；
+`pointerDiffersFromCwd=true` → **必须问**（默认 workDir = 用户正在对话的目录，用户期待产物出现在那里）；
+两者都空 → 按 `needAsk` 问，然后 bootstrap。
 
-#### ⚠️ 指针的 workDir ≠ 当前会话 cwd 时，必须先问
-
-**默认 `workDir` = 用户自己的 AI 工作目录（当前会话 cwd）** —— 用户期待**产物出现在自己正在对话的那个目录**，
-所以「已配置过」不能成为静默沿用别的目录的理由。问法：
+`pointerDiffersFromCwd=true` 时的问法与分支：
 
 ```
 检测到本机已有一份配置：
-  workDir     = D:\work\L4D2      ← 不是你现在这个目录
-  addonsDir   = D:\Steam\…\left4dead2\addons
+  workDir   = D:\work\L4D2      ← 不是你现在这个目录
+  addonsDir = D:\Steam\…\left4dead2\addons
 本次整理用哪个目录？产物（xlsx / 刷新表格.bat / _work\）会放在那里。
   A) 当前会话目录 （推荐）→ 新建一份配置，addons 路径沿用上面那个，不用你重填
   B) 用上面那个 workDir → 产物继续落在 D:\work\L4D2
 ```
 
-- 选 **A** → 跑 `bootstrap.py --workdir "<当前目录>" --addons "<上面那个 addonsDir>"`（`--workshop` 等一并沿用），
-  这条会把当前目录变成新的 workDir（并更新全局指针）。**不要重新问 addons 路径**，已经知道了。
-- 选 **B** → 就按指针那个 workDir 干，别再问。
-- 用户明确说过「以后都放某个固定目录」→ 记下来，之后不再问（属于用户显式指令，可以覆盖默认）。
+- 选 **A** → `bootstrap.py --workdir "<当前目录>" --addons "<上面那个 addonsDir>"`（**不要重问 addons 路径**）
+- 选 **B** → 按指针那个 workDir 干，别再问
+- 用户说过「以后都放某个固定目录」→ 记下来，之后不再问
 
-**无论走哪条分支，最后都要把解析结果回报给用户**，格式类似：
-
-```
-配置来源：全局指针（C:\Users\<你>\.l4d2-addons.home）
-  workDir     = D:\work\L4D2
-  addonsDir   = D:\Steam\steamapps\common\Left 4 Dead 2\left4dead2\addons
-  workshopDir = …\left4dead2\addons\workshop
-```
-
-这三行让用户能一眼发现「指到别的盘 / 旧安装」这类问题；**发现指错了就重跑 bootstrap**（加 `--force`）或直接改 `config.json`，然后重新探测。
+**无论走哪条分支，最后都要把解析结果回报给用户**（`workDir` / `addonsDir` / `workshopDir` 三行），
+让他一眼能发现「指到别的盘 / 旧安装」；**指错了就重跑 bootstrap（加 `--force`）或改 `config.json`**。
 不要只说一句「已找到配置」就往下干。
 
-首次调用要问的（一次问完，别挤牙膏）：
-
-1. **《求生之路2》的 addons 目录** —— 例如 `D:\Steam\steamapps\common\Left 4 Dead 2\left4dead2\addons`
-   （提示用户：Steam 库里右键游戏 → 管理 → 浏览本地文件 → `left4dead2\addons`）
-2. **workshop 暂存目录** —— 默认就是 `<addons>\workshop`，多数人不用改
-3. **工作目录** —— 默认用当前 AI 工作目录，问一句「要不要换个地方」
-
-拿到答案后：
+首次调用要问的三项（一次问完）：① **addons 目录**（提示：Steam 库右键游戏 → 管理 → 浏览本地文件 → `left4dead2\addons`）
+② **workshop 暂存目录**（默认 `<addons>\workshop`，多数人不用改）③ **工作目录**（默认当前 AI 工作目录，问一句要不要换）。
 
 ```powershell
 python <skill>\scripts\bootstrap.py --workdir "<workDir>" --addons "<addonsDir>" [--workshop "<dir>"]
 ```
 
-bootstrap 会自动做完：写 `config.json` → 把脚本铺进 `<workDir>\_work\` → 渲染 `刷新表格.bat`（写入本机 python/node 绝对路径）→ **跑一次刷新，产出 xlsx** → 记一个全局指针 `%USERPROFILE%\.l4d2-addons.home`（下次任何目录都能找到 workDir）。
-
-跑完把结果告诉用户，并提醒：以后**双击 `刷新表格.bat` 就能重扫刷新**，不用再找 AI。
-
-> 已有 `config.json` 时 bootstrap 不会覆盖用户数据（`name_exempt.json` / `set_exempt.json` / `mod白名单.txt` 缺了才建）。
-> 想改路径就再跑一次 bootstrap，或直接编辑 `<workDir>\config.json`。
+bootstrap 自动做完：写 `config.json` → 铺脚本进 `<workDir>\_work\` → 渲染 `刷新表格.bat` → **跑一次刷新产出 xlsx**
+→ 记全局指针 `%USERPROFILE%\.l4d2-addons.home`。跑完提醒用户：以后**双击 `刷新表格.bat` 就能重扫刷新**。
+已有 `config.json` 时不会覆盖用户数据（`name_exempt.json` / `set_exempt.json` / `mod白名单.txt` 缺了才建）。
 
 ---
 
 ## 1. 配置与路径约定
 
-全在 `<workDir>\config.json`：
+全在 `<workDir>\config.json`：`workDir` / `scriptsDir`(默认 `_work`) / `xlsxName` / `addonsDir`（**mod 库最终落点**）/
+`workshopDir` / `backupDir`(默认 `mod备份`) / `stagingDir`(`mod暂存` —— **用户自留区，绝不动**) / `whitelistFile` /
+`mirrorDir` / `pythonPath` / `nodePath`。
 
-| 键 | 含义 |
-|---|---|
-| `workDir` | 工作目录 |
-| `scriptsDir` | 脚本子目录，默认 `_work` |
-| `xlsxName` | 表格文件名，默认 `求生之路2_可MOD替换物品总表.xlsx` |
-| `addonsDir` | **游戏 mod 库（最终落点）** |
-| `workshopDir` | Steam 下载暂存，默认 `<addonsDir>\workshop` |
-| `backupDir` | 冲突备份，默认 `<addonsDir>\mod备份` |
-| `stagingDir` | `<addonsDir>\mod暂存` —— **用户自留区，绝不动** |
-| `whitelistFile` | `<addonsDir>\mod白名单.txt` |
-| `mirrorDir` | 工作区镜像备份，默认 `<workDir>-backup` |
-| `pythonPath` / `nodePath` | 渲染 `刷新表格.bat` 用的解释器 |
-
-所有脚本按 **环境变量 → `config.json` → 内置默认** 三级解析路径，可用
+所有脚本按 **环境变量 → `config.json` → 内置默认** 三级解析，可用
 `L4D2_HOME` / `L4D2_ADDONS` / `L4D2_XLSX_OUT` / `L4D2_MIRROR` 临时覆盖。
 
 ---
 
 ## 2. 标准流程（用户说「干活」时执行）
 
-1. **扫描 `<workshopDir>`**，列出 `<id>.vpk` / `<id>.jpg`
-   - ⚠️ **不是里面每个文件都来自工坊**：只有**纯数字 ID** 文件名的是订阅件；中文名/别的名字是用户手工丢进来的**手工件**
+> ⭐ **第 1-3 步与第 6/9 步已合并进一条命令**：`node <scriptsDir>\flow.mjs`
+> —— 它给出暂存件证据 + 名字体检 + 冲突两条腿 + 收尾验收，**且不改库**。先跑它，再按下面的判断补做人工环节。
+
+1. **扫描 `workshopDir`**，列出 `<id>.vpk` / `<id>.jpg`
+   - ⚠️ **不是每个文件都来自工坊**：只有**纯数字 ID** 的是订阅件；中文名/别的名字是**手工件**
    - 手工件**没有工坊 ID → 不建 `.url`**，不参与「取工坊信息」与「取消订阅」
-2. **取工坊信息**：批量 POST `ISteamRemoteStorage/GetPublishedFileDetails`（≤100 个 ID 一次，避免风控）。
-   `result=9` = 条目已删除/不可见 → 跳过并在报告里写明原因。详见 `reference/steam-api.md`
+2. **取工坊信息**：批量 POST `ISteamRemoteStorage/GetPublishedFileDetails`（≤100 ID 一次，避免风控）。
+   `result=9` = 已删除/不可见 → 跳过并写明原因。详见 `reference/steam-api.md`
 3. **取「命名证据」+ 查重与冲突预判**
-
-   ⚠️ **新订阅件还没进 addons，扫库的 `scan_addons.mjs` 看不到它们** —— 直接看路径瞎猜很容易分错类。先跑：
-
-   ```powershell
-   & "<workDir>\<scriptsDir>\scan_workshop.ps1"
-   ```
-
-   它用**同一套分类规则**扫 `workshop\`，输出 `workshop_scan.json`，直接告出每件命中了哪些标签
-   （`武器·AK-47 突击步枪` / `教练 Coach` / `武器·武士刀` …）—— 分类前缀与替换对象就有据可依。
-
-   然后：按 `.url` 里的 ID 建映射（判断该 ID 是否已在 addons 中）→ 对 vpk 算 SHA1 与 addons 现存比对
-   （同内容 = 重复，删旧留新）→ 检查目标名是否已被占用。
-4. **命名**：`<分类>-<替换对象>-<原标题>`；无替换对象时省略中段。规则见第 3 节 + `reference/naming-rules.md`
-5. **搬迁**：vpk + jpg 移入 addons 并改名，**同时新建 `.url`** —— 用 `consolidate5.ps1`，**别手写搬移**：
-
-   ```powershell
-   & "<workDir>\<scriptsDir>\consolidate5.ps1" -Batch "<workDir>\<scriptsDir>\ws_batch<N>.json"          # 干跑
-   & "<workDir>\<scriptsDir>\consolidate5.ps1" -Batch "<workDir>\<scriptsDir>\ws_batch<N>.json" -Apply   # 执行
-   ```
-
-   批次 JSON（UTF-8，中文的唯一来源）字段：`id`（**手工件写 `""` → 不建 `.url`**）/ `src`（手工件的源文件名）/
-   `base`（直接指定成品名主体，多件套共用前缀时用它）/ `cat`+`target`+`title`（未给 base 时按 `<cat>[-<target>]-<title>` 拼）。
-
-   它自带：Windows 非法字符全角化、**主干 >63 字节自动截断标题**、**目标名被占用则整条 SKIP**（不覆盖）、vpk+jpg+url 三件同步、
-   日志写 `<批次名>_log.txt`。干跑输出的 `OK / SKIP` 数必须核对过再 `-Apply`。
-6. **冲突检查**：同一替换对象下有多个 mod 时 → **还在 `workshopDir` 里的那件无条件算新**，
-   其余连同 jpg/url 移入 `backupDir`；用 `resolve_conflicts.ps1 -Batch <json>`（**默认干跑**，`-Apply` 执行），
-   它会追加 `<backupDir>\backup_manifest.md` 的行（写明理由 + 保留了哪份）。
-   - ⚠️ **核心标准（用户明确指定，别记错）：未整理的 —— 即还在 `workshopDir` 内的 —— 永远按新算。**
-     工坊 `time_updated` **只在两件都来自 `workshopDir` 时**才用于分胜负；
-     `addons` 里的常驻件再新，也赢不了刚从 `workshopDir` 出来的那件。
-   - 工具只负责「搬 + 记账」，**判谁赢是调用方的决定** —— 因为「哪件是工坊件」只在整理过程中存在，
-     搬完都躺在 `addons` 里就分不出来了。
-   - **安全不变式**：`keep` 在 `addons` 里没有 `.vpk` 时**整条拒绝执行**，绝不把某个替换对象搬空。
-   - 豁免：`mod白名单.txt` 里的条目跳过；多件套只按 `set_exempt.json` **声明过的成员**判定，**不按组键**。
+   - ⚠️ **新订阅件还没进 addons，`scan_addons.mjs` 看不到它们** → 命名证据必须来自
+     `scan_workshop.ps1`（用**同一套分类规则**扫 `workshop\`，输出 `workshop_scan.json`，告出每件命中的标签）。
+     `flow.mjs` 已内含这一步。
+   - 再按 `.url` 里的 ID 建映射 → 对 vpk 算 SHA1 与 addons 现存比对（同内容 = 重复）→ 检查目标名是否被占用
+4. **命名**：`<分类>-<替换对象>-<原标题>`；无替换对象时省略中段。
+   **完整判据见 `reference/naming-rules.md`**（S1–S5、邻接标签、横切行、上位名、规则例外），别凭印象写
+5. **搬迁**：用 `consolidate5.ps1 -Batch <json>`（**默认干跑**，核对 `OK/SKIP` 再 `-Apply`）—— **别手写搬移**
+   - 批次 JSON（UTF-8，中文的唯一来源）字段：`id`（**手工件写 `""` → 不建 `.url`**）/ `src`（源文件名）/
+     `base`（直接指定成品名主体，多件套附加件用它共用主件前缀）/ `cat`+`target`+`title`
+   - 它自带：非法字符全角化、**主干 >63 字节自动截断**、**目标名被占用则整条 SKIP**、vpk+jpg+url 三件同步
+6. **冲突检查（两条腿，都要看）**
+   - a) **名字级** `scan_targets.ps1`；b) **文件级** `overlap_scan.mjs`（见 §3）
+   - ⚠️ **核心标准（用户明确指定，别记错）：未整理的 —— 即还在 `workshopDir` 内的 —— 永远按新算**，
+     **即使它的工坊日期更旧**。`time_updated` **只在两件都来自 `workshopDir` 时**才用于分胜负
+   - 执行用 `resolve_conflicts.ps1 -Batch <json>`（**默认干跑**）；它只负责「搬 + 记账」，
+     **判谁赢是调用方的决定**。**安全不变式**：`keep` 在 addons 里没有 `.vpk` 时**整条拒绝**，绝不搬空
+   - 豁免：`mod白名单.txt` 条目跳过；多件套只按 `set_exempt.json` **声明过的成员**判定，**不按组键**
 7. **清理**：`workshopDir` 清空后**保留空目录**（删了会影响 Steam 下载）
-8. **取消订阅** —— ⚠️ **每次执行前都必须停下来问用户一次，不要自作主张。**
-   - **为什么必须做**：L4D2 的工坊投递是把 `<id>.vpk` 直接放进 `workshop\`。你把 VPK 搬走后，
-     只要订阅还在，下次启动游戏 Steam 就会把同样的 VPK 再下一遍，整理白做。
-   - **但它是账号级、不可逆操作**（Steam 原文「此操作无法撤销！」）→ 所以问的时候要说清三件事：
-     1. **退哪些** —— 列出 ID + 标题 + 总数（别只说「3 个」）
-     2. **为什么必须做** —— 不退的话下次进游戏会把刚整理走的 VPK 重新下回来
-     3. **不可逆 + 回退方式** —— 回退 = 重新订阅；addons 里每个 mod 都留了 `.url` 可直达工坊页，
-        但 `result=9` 的已删除条目与**手工件**没有 `.url`，退订后无处可回
-   - **授权不跨会话**：只有用户在**当前这次会话**里明确说了「以后不用问 / 直接退」之类的话，本次才可以跳过；
-     不要因为记忆或上次会话授权过就默认免确认。详见 `reference/steam-api.md`
-9. **刷新表格** —— ✅ **这是流程的固定最后一步**：跑 `<workDir>\刷新表格.bat`（双击，或 `cmd /c "刷新表格.bat" nopause`）。
-   - **为什么必须在最后**：`plan_v4` / `verify_*` / `扫描` 全都读 `addons_scan.json`。**改名或搬迁之后不重跑刷新，那份扫描数据里还是旧文件名** —— 再跑推演会对着旧名重复提出同样的改名，看起来像「幂等失效」，其实只是数据旧了（`plan_v4` 现在会打 `[WARN] addons_scan.json 已过期` 提醒）。
-   - 刷新会重建 xlsx → 重扫 addons → 并入替换状态，正常应看到 `unclassifiedPaths: 0`、
-     `[OK] 标签与表格行一一对应：N 个标签，无共用`。
-   - **刷新完再复验一次**：`plan_v4` 需改名 0 / `scan_targets.ps1` conflicts=0。
-10. **写进记忆（收尾，不改库）** —— 把本次结论压成**一条精简记忆**，下次开会话直接复用，**省掉重新探索的 token**。
-   - **写什么**（只写能省掉一次探索的）：① 本次**结论级数字**（入库几件、`addons` 计数变化、新增前缀/例外）
-     ② **稳定环境事实**（workDir、skill 安装路径、新加的工具）
-   - **不写什么**：逐条文件清单（xlsx 里就有）、过程叙事、临时进度、能一条命令查到的东西
-   - **先去重**：已有同义条目就 `replace` 而不是 `add` —— 记忆有容量，别让它膨胀
-   - 工具：DSH 用 `mnemon_runtime_memory`（`target=memory`）；其它宿主按各自的长期记忆机制处理
-   - ⚠️ 这一步**不改任何库文件**，所以放在第 9 步之后是安全的
+8. **取消订阅** —— ⚠️ **每次执行前都必须停下来问用户一次，不要自作主张**
+   - **为什么必须做**：L4D2 工坊投递是把 `<id>.vpk` 直接放进 `workshop\`；只要订阅还在，下次启动游戏
+     Steam 就会把同样的 VPK 再下一遍，整理白做
+   - **但它是账号级、不可逆操作**（Steam 原文「此操作无法撤销！」）→ 问时必须说清三件事：
+     ① **退哪些**（列 ID + 标题 + 总数，别只说「3 个」）② **为什么必须做** ③ **不可逆 + 回退方式**
+     （回退 = 重新订阅；但 `result=9` 的已删除条目与**手工件**没有 `.url`，退订后无处可回）
+   - **授权不跨会话**：只有用户**在当前这次会话**里明确说「以后不用问 / 直接退」才可跳过。详见 `reference/steam-api.md`
+9. **刷新表格 + 验收** —— ✅ **流程的固定最后一步**：`<workDir>\刷新表格.bat`（或 `cmd /c "刷新表格.bat" nopause`）
+   → `python <scriptsDir>\verify_all.py`（**一行总验**）
+   - **为什么必须在最后**：`plan_v4` / `verify_*` 全读 `addons_scan.json`。**改名或搬迁后不重跑刷新，那份数据里
+     还是旧文件名** → 再推演会对着旧名重复提同样的改名（看着像「幂等失效」，其实只是数据旧了）。
+     `verify_all.py` 会报 `stale=YES` 帮你抓这个
+10. **写进记忆（收尾，不改库）** —— 把结论压成**一条精简记忆**，省掉下次重新探索的 token
+    - **写什么**：① 本次**结论级数字**（入库几件、计数变化、新增前缀/例外）② **稳定环境事实**（workDir、skill 路径、新工具）
+    - **不写什么**：逐条文件清单（xlsx 里就有）、过程叙事、临时进度、能一条命令查到的东西
+    - **先去重**：已有同义条目用 `replace` 而不是 `add`
+    - 工具：DSH 用 `mnemon_runtime_memory`（`target=memory`）
 
 ---
 
-## 3. 分类与命名（摘要）
+## 3. 冲突判定：为什么有两条腿
 
-**19 个前缀**：物件域 10 个 —— `生还者-` `特感-` `普感-` `主武器-` `副武器-` `近战-` `投掷物-` `消耗品-` `场景道具-` `场景-`；
-资源类型 7 个 —— `模型-` `地图-` `材质-` `界面-` `特效-` `脚本-` `音效-`；兜底 `其它-`。
+| 腿 | 工具 | 能看出什么 |
+|---|---|---|
+| 名字级 | `scan_targets.ps1` | 同「前缀 + 第二段」分组里的多份。⚠️ **剥掉前缀后不含短横的条目永远不进判定**（已知盲点，见 `reference/naming-rules.md` §C3） |
+| 文件级 | ⭐ `overlap_scan.mjs` | **装了同一文件且内容不同**的 mod 对 —— 这类**第二段名可能不同，扫描器与 `verify_overlaps` 都看不出** |
 
-**中段（替换对象）**：`生还者-`/`特感-` 用官方**英文名**（Coach / Boomer / Hunter）；
-其余物件域用官方**中文名**（AK-47 突击步枪 / 武士刀 / 马格南手枪）；资源类型前缀与低置信项**省略中段**。
-同域多行时用**上位名**（手枪 / 霰弹枪 / Francis / Witch / Boomer / Tank）。
+`overlap_scan.mjs` 的判据：解析全库 VPK 目录树取**路径 + CRC**，反向索引求交集，**逐对比 CRC** ——
+内容相同（原版素材 / 同作者共用贴图 / VScript 公共库）→ 良性；内容不同 → **真抢位**。
+完整结果写 `_work\blind_overlaps.md`；`--strict` 有真抢位时退出码 1（可当门禁）。
 
-**原标题原样保留**（尊重发布者），只把 Windows 非法字符换成全角
-`\ / : * ? " < > |` → `＼ ／ ： ＊ ？ ＂ ＜ ＞ ｜`，清理换行/制表符/结尾句点，超长在**标题段**截断。
-
-⚠️ **硬约束：文件名主干（不含 `.vpk`）≤ 63 个 ANSI 字节**（2026-10-03 实战定位）。
-L4D2 用定长名字缓冲，**主干超 63 字节的包根本不挂载**：不在「附加内容」列表里出现、里面的模型/贴图/声音全不生效、
-**日志零报错**（最容易被误判成 mod 本身做得烂）。实测：82B / 88B 全失效；同一份字节改名成 41B 立刻生效；58B / 61B 一直正常。
-`plan_v4.py` 的 `cap_name()` 与 `consolidate5.ps1` 的 `CapName()` 会自动把超长标题截到装得下（优先断词，只动标题段）。
-
-⚠️ 完整判据（S1–S5、邻接标签映射、横切行表、上位名表、规则例外）见 **`reference/naming-rules.md`**，别凭印象写。
+⚠️ **它报出来的不一定都是冲突**：同系列分卷（Cold Front / Poolcore / 地心引力 / 切尔诺贝利 / Glubtastic）
+各代共用素材目录且内容逐代迭代，会被报成真抢位，但那是**作者自己的打包习惯**，判据见 `reference/naming-rules.md` §G/§C3。
 
 ---
 
 ## 4. 工具箱
 
-全部在 `<workDir>\<scriptsDir>\`。
-
-### 表格链路
+**全表见 `reference/toolbox.md`**（按需查）。日常只需记住三个：
 
 | 脚本 | 作用 |
 |---|---|
-| `刷新表格.bat` | 一键：占用检测 → 重建基础表 → 扫 addons → 写回替换状态。**日常只需要它** |
-| `build_ref_xlsx.py` | 生成 14 张基础表（说明/生还者/特殊感染者/普通感染者/主武器/副武器/近战/投掷物/消耗品/场景道具/固定武器·场景/音效路径/界面·特效·材质·其他/分类速查） |
-| `scan_addons.mjs` | 解出每个 VPK 的完整资源树并归类 → `addons_scan.json` / `addons_by_target.json` |
-| `enrich_ref_xlsx.py` | 并入「替换状态 / 替换它的 MOD / 原版英文名 / Token 来源」四列，追加「我的MOD清单」「替换覆盖总览」→ `label_map.json` |
-| `check_lock.mjs` | 刷新前检测 xlsx 是否被 WPS/Excel 占用 |
-
-### 命名链路
-
-| 脚本 | 作用 |
-|---|---|
-| `rv_dump_paths.mjs` | 自写解析器解出**全部完整路径** → `rv_paths.json`（文件名索引；**改名后必须重跑**，`plan_v4.py` 已能自愈） |
-| `plan_v4.py` | 按 S1–S5 推演 → `rename_plan.md`（含规则例外、多件套归并、幂等保护） |
-| `mk_rename_json.py` | 出改名批次 `rename_batch.json` |
-| `rename_batch.ps1 -Batch <json>` | **干跑**；加 `-Apply` 执行。vpk+jpg+url 三件同步，目标占用则整条 SKIP，日志 `*_log.txt` |
-
-### 搬迁链路
-
-| 脚本 | 作用 |
-|---|---|
-| `scan_workshop.ps1` | **扫 `workshopDir` 暂存件**，用与扫库完全相同的分类规则 → `workshop_scan.json`。**新订阅件的命名证据靠它**（`scan_addons.mjs` 只扫 addons 顶层，看不到暂存件） |
-| `consolidate5.ps1 -Batch <json> [-Apply]` | **`workshop\` → `addons\`**：搬 vpk+jpg、按 `<分类>-<替换对象>-<原标题>` 改名、`id` 非空才建 `.url`。默认干跑，目标占用整条 SKIP。**不要手写搬移** |
-| `resolve_conflicts.ps1 -Batch <json> [-Apply]` | **冲突留新移旧**：把败方 vpk+jpg+url 移入 `backupDir` 并追加清单行。**默认干跑**；`keep` 不存在则整条拒绝（不搬空）。批次 = `[{target, keep, move:[...], reason}]` |
-| ⭐ `batch_digest.mjs [--ids a,b] [--dir <目录>] [--names <json>]` | **一屏看全一批暂存件**：每件一行（体积/路径数/bsp·nav·mdl·nut·snd 计数/命中标签前 3/未归类数/抽样路径）+ 未归类明细；`--names` 还能体检候选名（**GBK 字节** + 占用）。**取代每轮临时写的探针** |
-| `vpklist.ps1 -Path <单个 vpk> -OutName x -TopN 20` | 解 VPK 内部文件树（判断手工件替换了哪把枪/哪个角色）。**用 `powershell -NoProfile -ExecutionPolicy Bypass -File` 调用、一次一个路径**（进程内 `&` 会被策略拦；`-File` 传数组会摊平），`powershell -File -Path $数组` 会把数组摊平 |
-| `vpkdump.ps1 -Path <vpk> -Match '^addoninfo\.txt$' -OutName x -MaxChars 3000` | 提取 VPK 内某个文件的内容 —— **识别未知 mod / 工坊页已失效（`result=9`）时唯一权威依据**。自动判 `entryOffset` 的两种 base；末尾附全部条目路径 |
-| `vpkwrite.mjs <out.vpk> <spec.json>` | 造一个合法 VPK（自测/造样本用）。spec = `[{"path": "...", "text": "..."}]` |
-
-### 冲突与校验
-
-| 脚本 | 作用 |
-|---|---|
-| ⭐ `overlap_scan.mjs [--strict] [--top N] [--min N]` | **盲点扫描（文件级）**：解析全库 VPK 目录树取路径+CRC，找出「装了同一文件且内容不同」的 mod 对 —— 这类冲突**第二段名可能不同，扫描器与 `verify_overlaps` 都看不出**。完整结果写 `_work\blind_overlaps.md`；内容相同的交集（原版素材/共用贴图/VScript 公共库）自动折叠。回归用例：自测 S9 |
-| `scan_targets.ps1` | 按「前缀 + 第 2 段」分组的**文件名**冲突扫描（辅助，见下方注意） |
-| ⭐ `verify_all.py [--quick]` | **一条命令跑完全部验收**，成功只打印一行：`ALL OK rename=0 conflicts=0 rules=75/75 fixes=0 overlaps=0 unclassified=0 name63=ok labels=223`；任何一项不过就打印 `FAIL` + 该项关键输出。**取代过去 6-8 次收尾调用** |
-| `verify_rules.mjs` | 分类规则断言（改规则后必跑） |
-| `verify_fixes.py` | 读回 xlsx 逐条核对已知缺陷类别 |
-| `verify_overlaps.py` | 列出被 ≥2 个 mod 覆盖的标签，分「多件套 / 分类级 / 多目标聚合 / 仅地图附带 / ⚠真冲突」 |
-| `probe_unclassified.mjs` | 打印某 mod 的路径分类明细与未归类项 |
-| `verify_ps1_ascii.py` | **护栏**：检查所有 `.ps1` 是否 100% ASCII。PS 5.1 会把无 BOM 的 UTF-8 `.ps1` 按 GBK 解析，**哪怕中文只出现在注释里**也会打乱解析、吃掉后一行（真实事故：一句中文注释让 `$WS = ...` 整行消失） |
-| `self_test.py` | **全链路自测**：在临时目录里模拟「全新用户 + 空库」，跑 14 个阶段（bootstrap → 造 VPK → 刷新 → 扫 workshop 暂存件 → 搬迁 → 三件校验 → 再刷新 → 人工标签覆盖 → 命名幂等 → 冲突留新移旧 → **超长名按 63 字节截断** → 冲突/校验/ASCII 护栏 → **盲点扫描 CRC 判据** → **非法字符全角化**）。**改任何脚本前后都跑它** —— 不碰真实库，失败会保留临时目录供排查 |
-| `workspace_backup.ps1 -Mode save\|restore` | 工作区镜像备份（robocopy /MIR），防意外清空 |
-
-**冲突判定以「表格标签链路」为准**（`addons_scan.json` + `label_map.json` + `verify_overlaps.py`），
-`scan_targets.ps1` 只作辅助 —— 落到资源类型前缀的 mod 中段为空，文件名扫描器判不了它们。
+| ⭐ `flow.mjs [--plan] [--quiet]` | **巡检总入口**：暂存件证据 + 名字体检 + 冲突两条腿 + 验收；明细写 `flow_report.md`；**不改库** |
+| ⭐ `verify_all.py` | **一条命令收尾验收**，成功只印一行 `ALL OK stale=… rename=… conflicts=… rules=… fixes=… overlaps=… unclassified=… name63=… blind=… labels=…` |
+| `lib.mjs` | **共用底座**（配置 / VPK 树 / 分类规则 / 名字字节）—— **写新工具一律从这里取，别再抄一份** |
 
 ---
 
-## 4.5 省 token 的做法（2026-10-04 立，用户明确要求过）
+## 5. 省 token 的纪律（用户明确要求过，2026-10-04 立）
 
-每轮真正烧掉上下文的不是干活本身，而是**被反复注入的长文本**和**一次性的探测命令**。三条纪律：
+每轮真正烧掉上下文的不是干活本身，而是**被反复注入的长文本**与**一次性探测命令**：
 
-1. **长文档只留承重内容**：工作区的 `AGENTS.md` **每轮都被注入**（曾到 50 KB ≈ 15.6k tokens/轮）。
-   历史叙事、过程记录一律挪进 `_work\执行记录.md`；文档里只留「怎么做 + 坑 + 例外 + 指针」。
-   ⚠️ **别把历史再粘回去** —— 要查历史去那个文件。
-2. **别写一次性探针**：想看一批 mod 是什么 → `batch_digest.mjs` 一条命令；
-   收尾验收 → `verify_all.py` 一行。每轮临时写 probe 是过去最大的重复开销（一次 write + 一次 run + 一段输出 ×4-6）。
-3. **报告只给结论**：清单化表格（原文件名 / 新文件名 / 快捷方式 / 状态）+ 验收数字，
-   **不要贴工具的原始输出**（那是给模型看的，不是给人的）。
-4. 干活按固定的 10 步走，**不要重新推导规则**（规则与判据都在 `reference\` 里，读它比重新试快得多）。
+1. **长文档只留承重内容**：`AGENTS.md` 与 `SKILL.md` **每轮都被注入**。历史叙事一律进 `_work\执行记录.md`；
+   判据细节一律进 `reference\`；文档里只留「怎么做 + 坑 + 指针」。⚠️ **别把历史/细节粘回去**
+2. **别写一次性探针**：看一批 mod → `flow.mjs` 或 `batch_digest.mjs`；收尾 → `verify_all.py` 一行
+3. **报告只给结论**：清单化表格 + 验收数字，**不要贴工具原始输出**（那是给模型看的，不是给人的）
+4. 按固定 10 步走，**不要重新推导规则**（读 `reference\` 比重新试快得多）
 
-## 5. 硬约束（踩过的坑，务必守住）
+---
 
-1. **一个标签 ↔ 一行表格**（标签可由 `<workDir>\<scriptsDir>\label_override.json` 人工补，用于「名字已改身份、但内部路径看不出」的 mod；补的标签必须是已有表格行，否则 `enrich_ref_xlsx.py` 会 WARN）。标签被多行共用 → 那几行会同时显示同一份 mod 列表。`enrich_ref_xlsx.py` 启动即自检
-2. **物件域规则必须锚定 `^(models|materials)/`**。
-   - 只锚 `^models/` → 误伤「只改贴图」的物件 mod（实测梯子行从「已替换」退化成「仅附带覆盖」）
-   - 完全不锚 → 误吞同名 sound 目录（实测 `sound/weapons/50cal/` 抢走 `.50 重机枪`）
-3. **多值单元格每个值都写全路径**，分隔符统一「、」，通配写 `*`，整目录以 `/` 结尾；
-   VPK 根目录下的文件直接写文件名也算完整路径；说明文字挪到备注列。`verify_fixes.py` 核对「不合格条目数」必须为 0
-4. **路径必须先归一化再分类**（`scan_addons.mjs` 的 `normalizePath()`）。部分打包者把外层目录也打进 VPK
-   （`left 4 dead 2/left4dead2/…`、`for_users/…`、`for_modders/…`），这些用 `^` 锚定的规则一条都匹配不到。
-   **验收标准：`unclassifiedPaths` 必须为 0**
+## 6. 硬约束（踩过的坑，务必守住）
+
+1. **一个标签 ↔ 一行表格**（可用 `label_override.json` 人工补；补的标签必须是已有表格行，否则 WARN）
+2. **物件域规则必须锚定 `^(models|materials)/`** —— 只锚 `^models/` 会误伤「只改贴图」的物件 mod；
+   完全不锚会误吞同名 sound 目录（实测 `sound/weapons/50cal/` 抢走 `.50 重机枪`）
+3. **多值单元格每个值都写全路径**（分隔符「、」，通配 `*`，整目录以 `/` 结尾）；`verify_fixes.py` 必须 0
+4. **路径必须先归一化再分类**（`normalizePath()`）。**验收标准：`unclassifiedPaths` 必须为 0**
 5. **`rv_paths.json` 按文件名索引，改名后必须重跑**（`plan_v4.py` 已自动做）
-6. **改名必须幂等**：`newname()` 用「前缀匹配」判断当前名是否已合规，**不能按短横切分** ——
-   替换对象自己就可能带短横（`AK-47 突击步枪`、`M-16 突击步枪`）
-7. **多件套（主体 + 附加）**：共用同一前缀、附加件末尾加 `-附加名`，**改名时必须跟随主体**。
-   豁免**按成员**声明在 `set_exempt.json`，**不是按组键**（按组键会放过真冲突）
+6. **改名必须幂等**：用「前缀匹配」判断是否已合规，**不能按短横切分**（替换对象自己可能带短横：`AK-47 突击步枪`）
+7. **多件套**：共用同一前缀、附加件末尾加 `-附加名`，改名**跟随主体**；豁免**按成员**声明（**不是按组键**）
 8. **用户拍板过的取舍写进 `name_exempt.json`**，否则重跑规则会把名字推回去
-9. `mod白名单.txt` 里**只有「行首就是 `<前缀>-`」的行才算条目**；写中文说明时别让续行以 `<前缀>-` 开头
-10. **绝不动 `stagingDir`（`mod暂存`）**：不整理、不算冲突、不移动、不删除
-11. 中文文档/脚本的编码坑、PowerShell 5.1 的各种陷阱见 `reference/pitfalls.md`
+9. `mod白名单.txt` 里**只有「行首就是 `<前缀>-`」的行才算条目**；写说明时别让续行以 `<前缀>-` 开头
+10. **绝不动 `stagingDir`（`mod暂存`）**
+11. ⚠️ **文件名主干 ≤ 63 ANSI 字节** —— 超限的包引擎**根本不挂载**且**日志零报错**（极易误判成 mod 做得烂）
+12. 中文/编码/PowerShell 5.1 的坑见 `reference/pitfalls.md`（26 条）
 
 ---
 
-## 6. 用户偏好（沿用）
+## 7. 用户偏好（沿用）
 
 - 回复与产物一律用**用户的语言**（默认中文）
 - 结果**清单化**：原文件名 / 新文件名 / 快捷方式链接 / 处理状态
@@ -315,15 +194,18 @@ L4D2 用定长名字缓冲，**主干超 63 字节的包根本不挂载**：不�
 - 用户会自己动手改库；**文件数变少不等于出错**，不要把手动删除当异常去"修复"
 - **不生成 HTML 汇总页**，只要每个 mod 一个独立 `.url` 快捷方式
 - 遇到不确定的取舍（哪份算新、是否算冲突、跨域归属）**先问，不要自行决定**
+- ⚠️ **取消订阅每次都要问**（授权不跨会话）
 
 ---
 
-## 7. 参考文档
+## 8. 参考文档
 
 | 文件 | 内容 |
 |---|---|
-| `reference/naming-rules.md` | 分类命名规范全文（S1–S5、邻接标签、横切行、上位名、规则例外、实测数据） |
+| `reference/naming-rules.md` | 分类命名规范全文（S1–S5、邻接标签、横切行、上位名、**规则例外三类**、白名单可撤销、扫描盲点、同系列分卷） |
+| `reference/toolbox.md` | **工具箱全表**（按链路分组，含每个脚本的参数与坑） |
 | `reference/xlsx-pipeline.md` | 表格生成链路、4 条硬不变量、各脚本输出字段 |
 | `reference/vpk-format.md` | VPK 二进制格式要点与两个必踩的坑 |
-| `reference/steam-api.md` | 工坊批量查询 API、`.url` 格式、取消全部订阅 |
-| `reference/pitfalls.md` | Windows / PowerShell 5.1 / 中文编码 / 沙箱 环境坑清单 |
+| `reference/steam-api.md` | 工坊批量查询 API、`.url` 格式、取消全部订阅（含确认话术） |
+| `reference/pitfalls.md` | Windows / PowerShell 5.1 / 中文编码 / 沙箱 环境坑清单（26 条） |
+| `CONTRIBUTING.md` | 贡献指南 + 11 条硬不变量 |

@@ -22,9 +22,10 @@ python scripts\self_test.py
 ```
 
 `self_test.py` simulates a brand-new user with an empty library inside a temp
-directory and walks twelve stages (bootstrap -> fake VPKs -> refresh -> workshop scan ->
-migration -> verification -> re-refresh -> naming idempotence -> conflict/validation ->
-over-long-name truncation).
+directory and walks fifteen stages (bootstrap -> fake VPKs -> refresh -> workshop scan ->
+migration -> verification -> re-refresh -> label override -> naming idempotence ->
+conflict keep-new/move-old -> over-long-name truncation -> conflict/validation/ASCII
+guards -> blind-spot scan CRC -> illegal-char fullwidth mapping -> **docs guard**).
 It never touches a real library, and **keeps the temp folder if a stage fails** so you
 can inspect it.
 
@@ -183,6 +184,28 @@ test is `self_test.py` stage **S4b**: it migrates a mod whose title is 125 chara
 asserts the resulting stem is <= 63 bytes, keeps its `前缀-替换对象-` head, and that the
 planner afterwards still reports `需改名 0`.
 
+### 12. Knowledge lives in `reference/`; per-turn files stay lean
+
+`AGENTS.md` (workspace) and `SKILL.md` are **injected into the model's context on every
+turn** — that is a real, recurring cost, so they hold only the skeleton: the flow, the
+rules you must not break, and pointers. Every "how / why" detail belongs in `reference/`
+(and history in `<workDir>\_work\执行记录.md`).
+
+**Do not paste detail back into a per-turn file.** When something needs to be recorded,
+put it where it is read on demand, and add a pointer.
+
+This is enforced by `scripts/verify_docs.py` (wired into `verify_all.py` as `docs=N/M`
+and covered by `self_test.py` stage **S11**). It checks three things:
+
+1. **Coverage** — every critical topic is still findable (a topic passes on ANY of several
+   alternative keywords, so rewording is fine; *deleting the knowledge is not*).
+2. **References** — every `reference/x.md` mentioned in the docs exists (no dangling pointers).
+3. **Budget** — `AGENTS.md` and `SKILL.md` stay under their size caps, so the diet cannot
+   silently regress.
+
+⚠️ **If the guard fails, restore the knowledge — do not widen the budget.** The guard was
+built precisely because a deleted rule fails no test; it just makes a later run wrong.
+
 ---
 
 ## Adding a classification rule
@@ -191,7 +214,7 @@ planner afterwards still reports `需改名 0`.
 2. Map the new label to exactly one workbook row in `scripts/enrich_ref_xlsx.py`
    (invariant 2).
 3. Add an assertion for it in `scripts/verify_rules.mjs` — that file is the regression
-   suite for classification and currently runs 67 classification assertions plus 6
+   suite for classification and currently runs 69 classification assertions plus 6
    normalisation assertions.
 4. Run:
 

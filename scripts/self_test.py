@@ -378,6 +378,55 @@ def main():
         out.append('ps1 ASCII 护栏 OK')
         return ' / '.join(out)
 
+    def s11():
+        # 文档护栏（verify_docs.py）回归：它保证「文档瘦身没把判据/坑删掉」。
+        # 两件事都要验：① 正常情况通过 ② **删掉一个关键主题时必须报错**（否则护栏是摆设）。
+        # 在临时目录里造一份最小 skill 文档树，不碰真实工作区。
+        docs_dir = os.path.join(root, 'docskill')
+        ref_dir = os.path.join(docs_dir, 'reference')
+        os.makedirs(ref_dir, exist_ok=True)
+        # 最小 SKILL.md：把所有被检查主题的关键词都塞进去
+        topics = [
+            '未整理的 永远按新算 resolve_conflicts 按成员 组键 多件套 撤销 OUTSIDER scan_targets overlap_scan',
+            '盲点 第二段 集合名词 专项分类优先 分卷 同一张地图 63 S1 上位名 name_exempt label_override',
+            'PREFIX CATS FF5C 全角 unclassifiedPaths models|materials normalizePath stale 幂等 ASCII',
+            'ExecutionPolicy Bypass 大小写不敏感 pythonPath mod暂存 stagingDir unsubscribeall 每次',
+            'result=9 InternetShortcut flow.mjs lib.mjs verify_all self_test',
+        ]
+        with open(os.path.join(docs_dir, 'SKILL.md'), 'w', encoding='utf-8') as f:
+            f.write('# t\n' + '\n'.join(topics) + '\n')
+        # 断链检查：引用一个存在的 reference 文件
+        with open(os.path.join(ref_dir, 'naming-rules.md'), 'w', encoding='utf-8') as f:
+            f.write('# t\n')
+        with open(os.path.join(docs_dir, 'SKILL.md'), 'a', encoding='utf-8') as f:
+            f.write('see `reference/naming-rules.md`\n')
+        with open(os.path.join(root, 'AGENTS.md'), 'w', encoding='utf-8') as f:
+            f.write('# t\n')
+        # 布局要与 verify_docs 的期望一致：<workdir>/skill/l4d2-addons/...
+        os.makedirs(os.path.join(root, 'skill'), exist_ok=True)
+        dst = os.path.join(root, 'skill', 'l4d2-addons')
+        if os.path.exists(dst):
+            shutil.rmtree(dst, ignore_errors=True)
+        shutil.copytree(docs_dir, dst)
+        vd = os.path.join(HERE, 'verify_docs.py')
+        r = sh([PYEXE, vd, root])
+        need('"ok": true' in r.stdout, '文档护栏在完整文档下误报: %s' % (r.stdout + r.stderr)[-300:])
+
+        # 负向：抹掉一个关键主题（OUTSIDER）→ 必须 ok:false
+        sp = os.path.join(dst, 'SKILL.md')
+        txt = open(sp, encoding='utf-8').read().replace('OUTSIDER', 'OUTS1DER')
+        with open(sp, 'w', encoding='utf-8') as f:
+            f.write(txt)
+        r = sh([PYEXE, vd, root])
+        need('"ok": false' in r.stdout, '删掉关键主题却没报错（护栏是摆设）: %s' % r.stdout[-200:])
+        need('OUTSIDER' in r.stdout, '报错里没指出缺哪个主题')
+        # 负向：断链 → 必须 ok:false
+        with open(sp, 'w', encoding='utf-8') as f:
+            f.write(txt.replace('OUTS1DER', 'OUTSIDER').replace('reference/naming-rules.md', 'reference/ghost.md'))
+        r = sh([PYEXE, vd, root])
+        need('"ok": false' in r.stdout and 'ghost' in r.stdout, '断链没被抓到: %s' % r.stdout[-200:])
+        return '完整文档通过 / 缺主题必报 / 断链必报'
+
     for nm, fn in (('S1 bootstrap 生成工作区', s1), ('S2 造 3 个假 VPK 进 workshop', s2),
                    ('S3 刷新表格（空库也能跑）', s3), ('S3b 扫 workshop 暂存件（命名证据）', s3b),
                    ('S4 搬迁（consolidate5 干跑+执行）', s4), ('S5 校验搬迁结果', s5),
@@ -388,7 +437,8 @@ def main():
                    ('S4b 超长名按 63 字节截断', s4b),
                    ('S8 冲突扫描 + 校验 + ASCII 护栏', s8),
                    ('S9 盲点扫描（overlap_scan，CRC 判据）', s9),
-                   ('S10 非法字符全角化（| -> ｜）', s10)):
+                   ('S10 非法字符全角化（| -> ｜）', s10),
+                   ('S11 文档护栏（瘦身不丢知识）', s11)):
         stage(nm, fn)
 
     print('=' * 92)

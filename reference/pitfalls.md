@@ -76,3 +76,7 @@
     同理：`verify_rules.mjs` / `verify_fixes.py` 这类「读 `config.json` 找 workDir」的脚本要跑
     **`<workDir>\_work\` 里的部署副本**（直接跑 clone 里的 `scripts\` 会因为找不到 `_work\` 而崩），
     或先 `$env:L4D2_HOME=<workDir>`。
+27. ⚠️ **PowerShell 变量名大小写不敏感**：`$ad` 与 `$AD` **是同一个变量**！
+    实测写 `$ad = Join-Path $AD (...)` 直接把库路径覆盖成拼接串，之后所有计数与 SHA1 比对全错
+    （输出 `vpk 0`，看着像「库被清空」）。→ 命名要够区分（`$addonsDir` / `$wsFile` / `$adFile`）；
+    `$WS`/`$ws` 同理，都不能当两个变量用。

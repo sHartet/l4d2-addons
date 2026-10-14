@@ -161,7 +161,23 @@ vals['name63'] = 'ok' if not long_names else 'OVER(%d)' % len(long_names)
 if long_names:
     fails.append(('name63', '、'.join(long_names[:3])))
 
-order = ['stale', 'rename', 'conflicts', 'rules', 'fixes', 'overlaps', 'unclassified', 'name63', 'blind', 'labels']
+# 7b) 文档护栏（信息性 + 只在真丢知识时失败）：瘦身不能把判据/坑删掉。
+#     跑的是 clone 里的 verify_docs.py（它按 workDir 找文档，不看部署副本），
+#     所以这里显式指向 skill 源码目录；找不到就跳过（全新用户没装源码时不该拦）。
+_docs = os.path.join(HOME, 'skill', 'l4d2-addons', 'scripts', 'verify_docs.py')
+if os.path.exists(_docs):
+    t = run([PY, _docs, HOME])
+    try:
+        jd = json.loads(t[t.index('{'):t.rindex('}') + 1])
+        vals['docs'] = '%d/%d' % (jd['topics']['covered'], jd['topics']['total'])
+        if not jd['ok']:
+            miss = '、'.join(m['topic'] for m in jd.get('missing', [])[:3])
+            fails.append(('docs', '文档护栏未过：%s%s' % (miss, ' / 断链 ' + ','.join(jd['refs']['broken']) if jd['refs']['broken'] else '')))
+    except Exception as e:
+        vals['docs'] = '?'
+        fails.append(('docs', 'verify_docs 输出无法解析: %s' % (t.strip()[-160:] or e)))
+
+order = ['stale', 'rename', 'conflicts', 'rules', 'fixes', 'overlaps', 'unclassified', 'name63', 'blind', 'labels', 'docs']
 summary = ' '.join('%s=%s' % (k, vals.get(k, '-')) for k in order if k in vals)
 if fails:
     print('FAIL %d 项  %s' % (len(fails), summary))
